@@ -1,0 +1,5 @@
+datasets/**/*.hdf5 filter=lfs diff=lfs merge=lfs -text
+
+src/benchmarks/racing/**/*.npz filter=lfs diff=lfs merge=lfs -text
+src/benchmarks/racing/**/*.txt filter=lfs diff=lfs merge=lfs -text
+src/benchmarks/racing/**/*.csv filter=lfs diff=lfs merge=lfs -text
