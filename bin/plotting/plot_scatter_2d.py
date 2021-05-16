@@ -13,8 +13,8 @@ from matplotlib.colors import LogNorm
 
 from tqdm import trange
 
-from bore.benchmarks import Branin, Michalewicz, StyblinskiTang, GoldsteinPrice, SixHumpCamel
-from utils import GOLDEN_RATIO, WIDTH, size, load_frame
+from bore_experiments.benchmarks import Branin, Michalewicz, StyblinskiTang, GoldsteinPrice, SixHumpCamel
+from bore_experiments.plotting.utils import GOLDEN_RATIO, WIDTH, size, load_frame
 
 
 OUTPUT_DIR = "figures/"

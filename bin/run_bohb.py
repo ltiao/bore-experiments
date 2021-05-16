@@ -8,8 +8,8 @@ from hpbandster.optimizers import BOHB
 
 from pathlib import Path
 
-from bore.benchmarks import make_benchmark
-from utils import make_name, BenchmarkWorker, HpBandSterLogs
+from bore_experiments.benchmarks import make_benchmark
+from bore_experiments.utils import make_name, BenchmarkWorker, HpBandSterLogs
 
 
 @click.command()
@@ -18,6 +18,7 @@ from utils import make_name, BenchmarkWorker, HpBandSterLogs
 @click.option("--dimensions", type=int, help="Dimensions to use for `michalewicz` and `styblinski_tang` benchmarks.")
 @click.option("--method-name", default="bohb")
 @click.option("--num-runs", "-n", default=20)
+@click.option("--run-start", default=0)
 @click.option("--num-iterations", "-i", default=500)
 @click.option("--eta", default=3, help="Successive halving reduction factor.")
 @click.option("--min-budget", default=100)
@@ -34,7 +35,7 @@ from utils import make_name, BenchmarkWorker, HpBandSterLogs
 @click.option("--output-dir", default="results/",
               type=click.Path(file_okay=False, dir_okay=True),
               help="Output directory.")
-def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
+def main(benchmark_name, dataset_name, dimensions, method_name, num_runs, run_start,
          num_iterations, eta, min_budget, max_budget, min_points_in_model,
          top_n_percent, num_samples, random_fraction, bandwidth_factor,
          min_bandwidth, input_dir, output_dir):
@@ -42,7 +43,7 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
     benchmark = make_benchmark(benchmark_name,
                                dimensions=dimensions,
                                dataset_name=dataset_name,
-                               input_dir=input_dir)
+                               data_dir=input_dir)
     name = make_name(benchmark_name,
                      dimensions=dimensions,
                      dataset_name=dataset_name)
@@ -60,7 +61,7 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
     with output_path.joinpath("options.yaml").open('w') as f:
         yaml.dump(options, f)
 
-    for run_id in range(num_runs):
+    for run_id in range(run_start, num_runs):
 
         NS = hpns.NameServer(run_id=run_id, host='localhost', port=0)
         ns_host, ns_port = NS.start()

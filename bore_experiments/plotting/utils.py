@@ -1,9 +1,8 @@
 import numpy as np
 import pandas as pd
-import yaml
 
-from bore.benchmarks import make_benchmark
-from pathlib import Path
+from ..benchmarks import make_benchmark
+
 
 GOLDEN_RATIO = 0.5 * (1 + np.sqrt(5))
 WIDTH = 397.48499

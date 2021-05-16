@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from pathlib import Path
-from utils import GOLDEN_RATIO, WIDTH, size
+from bore_experiments.plotting.utils import GOLDEN_RATIO, WIDTH, size
 
 
 @click.command()

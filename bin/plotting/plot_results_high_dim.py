@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from pathlib import Path
-from utils import GOLDEN_RATIO, WIDTH, size, load_frame, get_error_mins
+from bore_experiments.plotting.utils import GOLDEN_RATIO, WIDTH, size, load_frame, get_error_mins
 
 OUTPUT_DIR = "figures/"
 

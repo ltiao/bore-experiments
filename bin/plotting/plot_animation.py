@@ -14,12 +14,12 @@ from tensorflow.keras.losses import BinaryCrossentropy
 
 from scipy.optimize import Bounds
 
-from bore.benchmarks import Forrester
 from bore.models import MaximizableSequential
 
 from pathlib import Path
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from utils import GOLDEN_RATIO, WIDTH, pt_to_in
+from bore_experiments.plotting.utils import GOLDEN_RATIO, WIDTH, pt_to_in
+from bore_experiments.benchmarks import Forrester
 
 
 @click.command()

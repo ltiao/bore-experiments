@@ -9,7 +9,7 @@ import seaborn as sns
 
 from pathlib import Path
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from utils import GOLDEN_RATIO, WIDTH, pt_to_in
+from bore_experiments.plotting.utils import GOLDEN_RATIO, WIDTH, pt_to_in
 
 
 @click.command()

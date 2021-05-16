@@ -7,9 +7,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from utils import (GOLDEN_RATIO, WIDTH, pt_to_in, load_frame, extract_series,
-                   merge_stack_series, get_loss_min, sanitize, get_ci)
 from pathlib import Path
+from bore_experiments.plotting.utils import (GOLDEN_RATIO, WIDTH, pt_to_in,
+                                             load_frame, extract_series,
+                                             merge_stack_series, get_loss_min,
+                                             sanitize, get_ci)
 
 
 @click.command()
@@ -66,8 +68,7 @@ def main(benchmark_name, input_dir, output_dir, num_runs, methods, ci,
     if legend:
         legend = "auto"
 
-    loss_min = None
-    # get_loss_min(benchmark_name, data_dir="datasets/fcnet_tabular_benchmarks")
+    loss_min = get_loss_min(benchmark_name, data_dir="datasets/fcnet_tabular_benchmarks")
 
     frames = []
     frames_merged = []
@@ -86,9 +87,9 @@ def main(benchmark_name, input_dir, output_dir, num_runs, methods, ci,
             frame = load_frame(path, run, loss_min=loss_min,
                                duration_key=duration_key)
             frames.append(frame.assign(method=method))
-            series[run] = extract_series(frame, index="elapsed", column="best")
+            series[run] = extract_series(frame, index="elapsed", column="regret")
 
-        frame_merged = merge_stack_series(series, y_key="best")
+        frame_merged = merge_stack_series(series, y_key="regret")
         frames_merged.append(frame_merged.assign(method=method))
 
     data = pd.concat(frames, axis="index", ignore_index=True, sort=True)
@@ -102,7 +103,7 @@ def main(benchmark_name, input_dir, output_dir, num_runs, methods, ci,
     fig, ax = plt.subplots()
     sns.despine(fig=fig, ax=ax, top=True)
 
-    sns.lineplot(x="evaluation", y="best",
+    sns.lineplot(x="evaluation", y="regret",
                  hue="method",  # hue_order=hue_order,
                  style="method",  # style_order=style_order,
                  # units="run", estimator=None,
@@ -112,7 +113,7 @@ def main(benchmark_name, input_dir, output_dir, num_runs, methods, ci,
     ax.set_xlabel("evaluations")
     ax.set_ylabel(ylabel)
 
-    # ax.set_yscale("log")
+    ax.set_yscale("log")
     ax.set_ylim(ymin, ymax)
 
     plt.tight_layout()
@@ -121,12 +122,12 @@ def main(benchmark_name, input_dir, output_dir, num_runs, methods, ci,
         fig.savefig(output_path.joinpath(f"regret_iterations_{context}_{suffix}.{ext}"),
                     dpi=dpi, transparent=transparent)
 
-    plt.show()
+    plt.clf()
 
     fig, ax = plt.subplots()
     sns.despine(fig=fig, ax=ax, top=True)
 
-    sns.lineplot(x="elapsed", y="best",
+    sns.lineplot(x="elapsed", y="regret",
                  hue="method",  # hue_order=hue_order,
                  style="method",  # style_order=style_order,
                  # units="run", estimator=None,
@@ -136,7 +137,8 @@ def main(benchmark_name, input_dir, output_dir, num_runs, methods, ci,
     ax.set_xlabel("wall-clock time elapsed [s]")
     ax.set_ylabel(ylabel)
 
-    # ax.set_yscale("log")
+    ax.set_yscale("log")
+    ax.set_ylim(ymin, ymax)
 
     plt.tight_layout()
 
@@ -144,26 +146,7 @@ def main(benchmark_name, input_dir, output_dir, num_runs, methods, ci,
         fig.savefig(output_path.joinpath(f"regret_elapsed_{context}_{suffix}.{ext}"),
                     dpi=dpi, transparent=transparent)
 
-    plt.show()
-
-    # # g = sns.relplot(x="elapsed", y="regret", hue="run",
-    # #                 col="method", palette="tab20",
-    # #                 alpha=0.6, kind="scatter", data=data)
-    # # g.map(sns.lineplot, "task", "regret best", "run",
-    # #       palette="tab20", linewidth=2.0, alpha=0.8)
-    # # g.set_axis_labels("iteration", "regret")
-
-    # # for ext in extension:
-    # #     g.savefig(output_path.joinpath(f"regret_vs_elapsed_all_{context}_{suffix}.{ext}"))
-
-    # # g = sns.relplot(x="task", y="error", hue="epoch",
-    # #                 col="run", col_wrap=4, palette="Dark2",
-    # #                 alpha=0.6, kind="scatter", data=data.query("method == 'BORE'"))
-    # # g.map(plt.plot, "task", "best", color="k", linewidth=2.0, alpha=0.8)
-    # # g.set_axis_labels("iteration", "regret")
-
-    # # for ext in extension:
-    # #     g.savefig(output_path.joinpath(f"error_vs_iterations_{context}_{suffix}.{ext}"))
+    plt.clf()
 
     return 0
 

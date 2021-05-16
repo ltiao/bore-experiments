@@ -27,7 +27,7 @@ logging.basicConfig(level=logging.DEBUG)
 @click.option("--eta", default=3, help="Successive halving reduction factor.")
 @click.option("--min-budget", default=100)
 @click.option("--max-budget", default=100)
-@click.option("--gamma", default=1/3, type=click.FloatRange(0., 1.),
+@click.option("--gamma", default=0.15, type=click.FloatRange(0., 1.),
               help="Quantile, or mixing proportion.")
 @click.option("--num-random-init", default=10)
 @click.option("--random-rate", default=0.1, type=click.FloatRange(0., 1.))

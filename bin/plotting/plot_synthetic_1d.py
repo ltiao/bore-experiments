@@ -19,8 +19,8 @@ from pathlib import Path
 
 from tensorflow.keras.losses import BinaryCrossentropy
 from bore.models import DenseMaximizableSequential
-from bore.datasets import make_classification_dataset
-from utils import GOLDEN_RATIO, WIDTH, pt_to_in
+from bore_experiments.datasets import make_classification_dataset
+from bore_experiments.plotting.utils import GOLDEN_RATIO, WIDTH, pt_to_in
 
 from sklearn.svm import SVC
 

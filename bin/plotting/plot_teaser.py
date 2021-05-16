@@ -24,8 +24,8 @@ from sklearn.utils import check_random_state
 from pathlib import Path
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from src.datasets import make_regression_dataset
-from src.plotting.utils import GOLDEN_RATIO, WIDTH, pt_to_in
+from bore_experiments.datasets import make_regression_dataset
+from bore_experiments.plotting.utils import GOLDEN_RATIO, WIDTH, pt_to_in
 
 # shortcuts
 tfd = tfp.distributions

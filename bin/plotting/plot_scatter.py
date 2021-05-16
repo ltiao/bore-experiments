@@ -8,7 +8,7 @@ from sklearn.preprocessing import KBinsDiscretizer
 from pathlib import Path
 from tqdm import trange
 
-from utils import GOLDEN_RATIO, WIDTH, size, load_frame
+from bore_experiments.plotting.utils import GOLDEN_RATIO, WIDTH, size, load_frame
 
 OUTPUT_DIR = "figures/"
 
