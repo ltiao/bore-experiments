@@ -9,8 +9,8 @@ from pathlib import Path
 
 from bore.plugins.hpbandster import BORE
 
-from benchmarks import make_benchmark
-from utils import make_name, BenchmarkWorker, HpBandSterLogs
+from bore_experiments.benchmarks import make_benchmark
+from bore_experiments.utils import make_name, BenchmarkWorker, HpBandSterLogs
 
 
 logging.basicConfig(level=logging.DEBUG)

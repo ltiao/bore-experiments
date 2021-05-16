@@ -12,9 +12,6 @@ import statsmodels.api as sm
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from bore.datasets import make_regression_dataset
-from bore.plotting import fill_between_stddev
-
 from sklearn.svm import SVR
 from sklearn.neighbors import KernelDensity
 from sklearn.pipeline import make_pipeline
@@ -24,16 +21,29 @@ from sklearn.model_selection import train_test_split
 from sklearn.datasets import load_boston, load_diabetes
 from sklearn.utils import check_random_state
 
-
 from pathlib import Path
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from utils import GOLDEN_RATIO, WIDTH, pt_to_in
+
+from src.datasets import make_regression_dataset
+from src.plotting.utils import GOLDEN_RATIO, WIDTH, pt_to_in
 
 # shortcuts
 tfd = tfp.distributions
 kernels = tfp.math.psd_kernels
 
 kernel_cls = kernels.ExponentiatedQuadratic
+
+
+def fill_between_stddev(X_pred, mean_pred, stddev_pred, n=1, ax=None, *args,
+                        **kwargs):
+
+    if ax is None:
+        ax = plt.gca()
+
+    ax.fill_between(X_pred,
+                    mean_pred - n * stddev_pred,
+                    mean_pred + n * stddev_pred, **kwargs)
+
 
 def make_test_metric(X_train, y_train, X_test, y_test):
 

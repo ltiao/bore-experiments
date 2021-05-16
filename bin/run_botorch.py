@@ -18,9 +18,9 @@ from pathlib import Path
 from tqdm import trange
 from datetime import datetime
 
-from bore.types import DenseConfigurationSpace, DenseConfiguration
-from bore.benchmarks import make_benchmark
-from utils import make_name
+from bore.plugins.hpbandster.types import DenseConfigurationSpace, DenseConfiguration
+from bore_experiments.benchmarks import make_benchmark
+from bore_experiments.utils import make_name
 
 
 def dict_from_tensor(tensor, cs):

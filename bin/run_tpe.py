@@ -5,8 +5,8 @@ import yaml
 from hyperopt import fmin, tpe, STATUS_OK, Trials
 from pathlib import Path
 
-from bore.benchmarks import make_benchmark
-from utils import make_name, HyperOptLogs
+from bore_experiments.benchmarks import make_benchmark
+from bore_experiments.utils import make_name, HyperOptLogs
 
 
 @click.command()

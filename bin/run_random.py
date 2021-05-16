@@ -8,8 +8,8 @@ from hpbandster.optimizers import RandomSearch
 
 from pathlib import Path
 
-from bore.benchmarks import make_benchmark
-from utils import make_name, BenchmarkWorker, HpBandSterLogs
+from bore_experiments.benchmarks import make_benchmark
+from bore_experiments.utils import make_name, BenchmarkWorker, HpBandSterLogs
 
 
 @click.command()
