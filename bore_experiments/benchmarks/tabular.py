@@ -11,22 +11,24 @@ from tabular_benchmarks import (FCNetProteinStructureBenchmark,
                                 FCNetParkinsonsTelemonitoringBenchmark)
 
 
+def _get_benchmark(dataset_name, data_dir):
+    benchmarks = dict(
+        protein=FCNetProteinStructureBenchmark(data_dir=data_dir),
+        slice=FCNetSliceLocalizationBenchmark(data_dir=data_dir),
+        naval=FCNetNavalPropulsionBenchmark(data_dir=data_dir),
+        parkinsons=FCNetParkinsonsTelemonitoringBenchmark(data_dir=data_dir))
+    return benchmarks.get(dataset_name)
+
+
 class FCNet(Benchmark):
 
     def __init__(self, dataset_name, data_dir):
-        if dataset_name == "protein":
-            benchmark = FCNetProteinStructureBenchmark(data_dir=data_dir)
-        elif dataset_name == "slice":
-            benchmark = FCNetSliceLocalizationBenchmark(data_dir=data_dir)
-        elif dataset_name == "naval":
-            benchmark = FCNetNavalPropulsionBenchmark(data_dir=data_dir)
-        elif dataset_name == "parkinsons":
-            benchmark = FCNetParkinsonsTelemonitoringBenchmark(data_dir=data_dir)
-        else:
+        benchmark = _get_benchmark(dataset_name, data_dir)
+        if benchmark is None:
             raise ValueError("dataset name not recognized!")
+        self.benchmark = benchmark
         self.dataset_name = dataset_name
         self.data_dir = data_dir
-        self.benchmark = benchmark
 
     def __call__(self, kwargs, budget=100):
         cs = self.get_config_space()
