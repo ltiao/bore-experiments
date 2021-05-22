@@ -23,3 +23,4 @@ names:
   bore-no-retrain: BORE-MLP
   bore-hd-ish: BORE-MLP
   bore++: BORE++
+  gp-botorch: GP-BO (EI)

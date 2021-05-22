@@ -7,12 +7,11 @@ from scipy.optimize import rosen
 
 class Forrester(Benchmark):
 
-    def __call__(self, kwargs, budget=None):
-        return Evaluation(value=self.func(**kwargs), duration=None)
-
-    @staticmethod
-    def func(x):
+    def __call__(self, x):
         return (6.*x - 2.)**2 * np.sin(12.*x-4.)
+
+    def evaluate(self, kwargs, budget=None):
+        return Evaluation(value=self(**kwargs), duration=None)
 
     def get_config_space(self):
         cs = CS.ConfigurationSpace()
@@ -27,12 +26,11 @@ class Forrester(Benchmark):
 
 class Sinusoid(Benchmark):
 
-    def __call__(self, kwargs, budget=None):
-        return Evaluation(value=self.func(**kwargs), duration=None)
-
-    @staticmethod
-    def func(x):
+    def __call__(self, x):
         return np.sin(3.0*x) + x**2 - 0.7*x
+
+    def evaluate(self, kwargs, budget=None):
+        return Evaluation(value=self(**kwargs), duration=None)
 
     def get_config_space(self):
         cs = CS.ConfigurationSpace()
@@ -56,15 +54,12 @@ class Branin(Benchmark):
         self.s = s
         self.t = t
 
-    def __call__(self, kwargs, budget=None):
+    def __call__(self, x, y):
+        return self.a * (y - self.b * x**2 + self.c*x - self.r)**2 + \
+            self.s * (1 - self.t) * np.cos(x) + self.s
 
-        value = self.func(**kwargs, a=self.a, b=self.b, c=self.c, r=self.r,
-                          s=self.s, t=self.t)
-        return Evaluation(value=value, duration=None)
-
-    @staticmethod
-    def func(x, y, a, b, c, r, s, t):
-        return a*(y - b * x**2 + c*x - r)**2 + s*(1 - t)*np.cos(x) + s
+    def evaluate(self, kwargs, budget=None):
+        return Evaluation(value=self(**kwargs), duration=None)
 
     def get_config_space(self):
         cs = CS.ConfigurationSpace()
@@ -86,16 +81,14 @@ class Ackley(Benchmark):
         self.b = b
         self.c = c
 
-    def __call__(self, kwargs, budget=None):
-        x = np.hstack([kwargs.get(f"x{d}") for d in range(self.dimensions)])
-        value = self.func(x, a=self.a, b=self.b, c=self.c)
-        return Evaluation(value=value, duration=None)
+    def __call__(self, x):
+        p = self.a * np.exp(-self.b * np.sqrt(np.mean(np.square(x), axis=-1)))
+        q = np.exp(np.mean(np.cos(self.c*x)))
+        return - p - q + self.a + np.e
 
-    @staticmethod
-    def func(x, a=20, b=0.2, c=2*np.pi):
-        p = a * np.exp(-b * np.sqrt(np.mean(np.square(x), axis=-1)))
-        q = np.exp(np.mean(np.cos(c*x)))
-        return - p - q + a + np.e
+    def evaluate(self, kwargs, budget=None):
+        x = np.hstack([kwargs.get(f"x{d}") for d in range(self.dimensions)])
+        return Evaluation(value=self(x), duration=None)
 
     def get_minimum(self):
         return 0.
@@ -113,9 +106,12 @@ class Rosenbrock(Benchmark):
     def __init__(self, dimensions):
         self.dimensions = dimensions
 
-    def __call__(self, kwargs, budget=None):
+    def __call__(self, x):
+        return rosen(x)
+
+    def evaluate(self, kwargs, budget=None):
         x = np.hstack([kwargs.get(f"x{d}") for d in range(self.dimensions)])
-        return Evaluation(value=rosen(x), duration=None)
+        return Evaluation(value=self(x), duration=None)
 
     def get_minimum(self):
         return 0.
@@ -133,13 +129,12 @@ class StyblinskiTang(Benchmark):
     def __init__(self, dimensions):
         self.dimensions = dimensions
 
-    def __call__(self, kwargs, budget=None):
-        x = np.hstack([kwargs.get(f"x{d}") for d in range(self.dimensions)])
-        return Evaluation(value=self.func(x), duration=None)
+    def __call__(self, x):
+        return .5 * np.sum(x**4 - 16 * x**2 + 5*x, axis=-1)
 
-    @staticmethod
-    def func(x):
-        return 0.5 * np.sum(x**4 - 16 * x**2 + 5*x, axis=-1)
+    def evaluate(self, kwargs, budget=None):
+        x = np.hstack([kwargs.get(f"x{d}") for d in range(self.dimensions)])
+        return Evaluation(value=self(x), duration=None)
 
     def get_minimum(self):
         return -39.16599 * self.dimensions
@@ -158,19 +153,18 @@ class Michalewicz(Benchmark):
         self.dimensions = dimensions
         self.m = m
 
-    def __call__(self, kwargs, budget=None):
-        x = np.hstack([kwargs.get(f"x{d}") for d in range(self.dimensions)])
-        return Evaluation(value=self.func(x, self.m), duration=None)
-
-    @staticmethod
-    def func(x, m):
+    def __call__(self, x):
         N = x.shape[-1]
         n = np.arange(N) + 1
 
         a = np.sin(x)
         b = np.sin(n * x**2 / np.pi)
-        b **= 2*m
+        b **= 2*self.m
         return - np.sum(a * b, axis=-1)
+
+    def evaluate(self, kwargs, budget=None):
+        x = np.hstack([kwargs.get(f"x{d}") for d in range(self.dimensions)])
+        return Evaluation(value=self(x), duration=None)
 
     def get_config_space(self):
         cs = CS.ConfigurationSpace()
@@ -198,15 +192,13 @@ class Hartmann(Benchmark):
         self.alpha = alpha
         self.dimensions = dimensions
 
-    def __call__(self, kwargs, budget=None):
-        x = np.hstack([kwargs.get(f"x{d}") for d in range(self.dimensions)])
-        return Evaluation(value=self.func(x, self.A, self.P, self.alpha),
-                          duration=None)
+    def __call__(self, x):
+        r = np.sum(self.A * np.square(x - self.P), axis=-1)
+        return - np.dot(np.exp(-r), self.alpha)
 
-    @staticmethod
-    def func(x, A, P, alpha):
-        r = np.sum(A * np.square(x - P), axis=-1)
-        return - np.dot(np.exp(-r), alpha)
+    def evaluate(self, kwargs, budget=None):
+        x = np.hstack([kwargs.get(f"x{d}") for d in range(self.dimensions)])
+        return Evaluation(value=self(x), duration=None)
 
     def get_config_space(self):
         cs = CS.ConfigurationSpace()
@@ -252,15 +244,13 @@ class Hartmann6D(Hartmann):
 
 class GoldsteinPrice(Benchmark):
 
-    def __call__(self, kwargs, budget=None):
-        value = self.func(**kwargs)
-        return Evaluation(value=value, duration=None)
-
-    @staticmethod
-    def func(x, y):
+    def __call__(self, x, y):
         a = 1 + (x + y + 1)**2 * (19 - 14*x + 3*x**2 - 14*y + 6*x*y + 3*y**2)
         b = 30 + (2*x - 3*y)**2 * (18 - 32*x + 12*x**2 + 48*y - 36*x*y + 27*y**2)
         return a * b
+
+    def evaluate(self, kwargs, budget=None):
+        return Evaluation(value=self(**kwargs), duration=None)
 
     def get_config_space(self):
         cs = CS.ConfigurationSpace()
@@ -276,13 +266,11 @@ class GoldsteinPrice(Benchmark):
 
 class SixHumpCamel(Benchmark):
 
-    def __call__(self, kwargs, budget=None):
-        value = self.func(**kwargs)
-        return Evaluation(value=value, duration=None)
-
-    @staticmethod
-    def func(x, y):
+    def __call__(self, x, y):
         return (4 - 2.1 * x**2 + x**4/3) * x**2 + x*y + (-4 + 4 * y**2) * y**2
+
+    def evaluate(self, kwargs, budget=None):
+        return Evaluation(value=self(**kwargs), duration=None)
 
     def get_config_space(self):
         cs = CS.ConfigurationSpace()

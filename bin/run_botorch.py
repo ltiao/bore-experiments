@@ -97,7 +97,7 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
         """
         config = dict_from_tensor(tensor, cs=config_space)
         # res = - benchmark(config).value  # turn into maximization problem
-        return torch.tensor(benchmark(config).value, requires_grad=False,
+        return torch.tensor(benchmark.evaluate(config).value, requires_grad=False,
                             device=device, dtype=dtype)
 
     # TODO(LT): make initial value option

@@ -43,7 +43,8 @@ def get_loss_min(benchmark_name, data_dir=None):
         benchmark_name, dataset_name = benchmark_name.split('_')
         kws = dict(dataset_name=dataset_name, data_dir=data_dir)
     elif benchmark_name.startswith("styblinski_tang") or \
-            benchmark_name.startswith("michalewicz"):
+            benchmark_name.startswith("michalewicz") or \
+            benchmark_name.startswith("rosenbrock"):
         *head, dimensions_str = benchmark_name.split('_')
         benchmark_name = '_'.join(head)
         dimensions = int(dimensions_str[:-1])

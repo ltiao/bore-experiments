@@ -43,7 +43,7 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
         yaml.dump(options, f)
 
     def objective(kws):
-        evaluation = benchmark(kws)
+        evaluation = benchmark.evaluate(kws)
         return dict(loss=evaluation.value, status=STATUS_OK,
                     info=evaluation.duration)
 

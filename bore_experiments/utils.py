@@ -24,7 +24,7 @@ class BenchmarkWorker(Worker):
         self.benchmark = benchmark
 
     def compute(self, config, budget, **kwargs):
-        evaluation = self.benchmark(config, budget)
+        evaluation = self.benchmark.evaluate(config, budget)
         return dict(loss=evaluation.value, info=evaluation.duration)
 
 

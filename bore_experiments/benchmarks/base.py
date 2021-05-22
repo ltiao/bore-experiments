@@ -9,6 +9,10 @@ Evaluation = namedtuple('Evaluation', ['value', 'duration'])
 class BenchmarkBase(ABC):
 
     @abstractmethod
+    def evaluate(self, kwargs, budget=None):
+        pass
+
+    @abstractmethod
     def get_config_space(self):
         pass
 
