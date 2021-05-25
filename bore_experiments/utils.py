@@ -1,6 +1,7 @@
 import pandas as pd
 
 from hpbandster.core.worker import Worker
+from datetime import datetime
 
 
 def make_name(benchmark_name, dimensions=None, dataset_name=None):
@@ -88,6 +89,36 @@ class HyperOptLogs:
             row.update(trial["result"])
             # hyperparameter values
             row.update(self.get_value_item(trial["misc"]["vals"], item=0))
+            rows.append(row)
+
+        return pd.DataFrame(rows)
+
+
+class SMACLogs:
+
+    def __init__(self, run_history):
+        self.run_history = run_history
+
+    def to_frame(self):
+
+        t_start = None
+
+        rows = []
+        for i, (run_key, run_value) in enumerate(self.run_history.data.items()):
+
+            config = self.run_history.ids_config[run_key.config_id]
+
+            if t_start is None:
+                t_start = datetime.fromtimestamp(run_value.starttime)
+
+            started_timedelta = datetime.fromtimestamp(run_value.starttime) - t_start
+            finished_timedelta = datetime.fromtimestamp(run_value.endtime) - t_start
+
+            row = dict(task=i,
+                       loss=run_value.cost,
+                       started=started_timedelta.total_seconds(),
+                       finished=finished_timedelta.total_seconds())
+            row.update(config)
             rows.append(row)
 
         return pd.DataFrame(rows)

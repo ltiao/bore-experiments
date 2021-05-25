@@ -24,3 +24,4 @@ names:
   bore-hd-ish: BORE-MLP
   bore++: BORE++
   gp-botorch: GP-BO (EI)
+  smac: \textsc{smac}

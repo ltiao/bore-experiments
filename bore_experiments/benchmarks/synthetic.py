@@ -261,7 +261,7 @@ class GoldsteinPrice(Benchmark):
         return cs
 
     def get_minimum(self):
-        return 3
+        return 3.
 
 
 class SixHumpCamel(Benchmark):
