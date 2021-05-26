@@ -1,27 +1,8 @@
 names:
+  random: Random
+  tpe: TPE
   bohb: TPE (\texttt{HpBandSter})
   bore: BORE
-  bore-ultimatum: BORE
-  bore-logit-elu-ftol-1e-2-gamma-0.33333333333333333333: BORE
-  bore-sigmoid-elu-ftol-1e-2-gamma-0.33333333333333333333: BORE
-  bore-sigmoid-elu-ftol-1e-9-random-0.1: BORE
-  bore-steps: BORE (250 steps)
-  bore-steps-50: BORE (50 steps)
-  boredom: BOREDOM
-  boredom-real: BORE
-  random: Random
-  swift: BORE (old)
-  tpe: TPE
-  bore-logit-relu-ftol-1e-2-gamma-0.33333333333333333333: BORE
-  bore-test: BORE
-  bore-test-2: BORE
-  bore-hd: BORE (high dim)
-  bore-hd-ftol-1e-2: BORE
-  bore-test: BORE
-  bore-2: BORE
-  bore-retrain: BORE-MLP (from scratch)
-  bore-no-retrain: BORE-MLP
-  bore-hd-ish: BORE-MLP
-  bore++: BORE++
-  gp-botorch: GP-BO (EI)
-  smac: \textsc{smac}
+  bore-elu-25: BORE
+  gp-botorch: BO-GP (EI)
+  smac: SMAC
