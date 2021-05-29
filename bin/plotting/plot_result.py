@@ -27,7 +27,7 @@ from bore_experiments.plotting.utils import (GOLDEN_RATIO, WIDTH, pt_to_in,
 @click.option('--legend/--no-legend', default=True)
 @click.option('--ymin', type=float)
 @click.option('--ymax', type=float)
-@click.option('--ylabel', default="immediate regret")
+@click.option('--ylabel', default="simple regret")
 @click.option('--transparent', is_flag=True)
 @click.option('--context', default="paper")
 @click.option('--style', default="ticks")

@@ -5,8 +5,8 @@ import yaml
 import torch
 import pandas as pd
 
-from gpytorch.mlls import ExactMarginalLogLikelihood
 from botorch.models import FixedNoiseGP
+from gpytorch.mlls import ExactMarginalLogLikelihood
 from botorch.fit import fit_gpytorch_model
 from botorch.acquisition import ExpectedImprovement
 from botorch.optim import optimize_acqf
@@ -47,6 +47,8 @@ def create_bounds(bounds, device=None, dtype=None):
 @click.option("--gamma", default=0., type=click.FloatRange(0., 1.),
               help="Quantile, or mixing proportion.")
 @click.option("--num-random-init", default=10)
+@click.option("--num-restarts", default=3)
+@click.option("--raw-samples", default=512)
 # @click.option('--use-ard', is_flag=True)
 # @click.option('--use-input-warping', is_flag=True)
 @click.option("--input-dir", default="datasets/fcnet_tabular_benchmarks",
@@ -59,7 +61,7 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
          run_start, num_iterations,
          # acquisition_name,
          # acquisition_optimizer_name,
-         gamma, num_random_init,
+         gamma, num_random_init, num_restarts, raw_samples,
          # use_ard,
          # use_input_warping,
          input_dir, output_dir):
@@ -80,10 +82,8 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
     output_path = Path(output_dir).joinpath(name, method_name)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    options = dict(gamma=gamma, num_random_init=num_random_init)
-    # options = dict(acquisition_name=acquisition_name,
-    #                acquisition_optimizer_name=acquisition_optimizer_name,
-    #                use_ard=use_ard, use_input_warping=use_input_warping)
+    options = dict(gamma=gamma, num_random_init=num_random_init,
+                   num_restarts=num_restarts, raw_samples=raw_samples)
     with output_path.joinpath("options.yaml").open('w') as f:
         yaml.dump(options, f)
 
@@ -96,9 +96,8 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
         Wrapper that receives and returns torch.Tensor
         """
         config = dict_from_tensor(tensor, cs=config_space)
-        # res = - benchmark(config).value  # turn into maximization problem
-        return torch.tensor(benchmark.evaluate(config).value, requires_grad=False,
-                            device=device, dtype=dtype)
+        res = - benchmark.evaluate(config).value  # turn into maximization problem
+        return torch.tensor(res, requires_grad=False, device=device, dtype=dtype)
 
     # TODO(LT): make initial value option
     noise_variance_init = 1e-3
@@ -146,13 +145,13 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                     tau = torch.quantile(z, q=gamma).item()
                     iterations.set_postfix(tau=tau)
 
-                    ei = ExpectedImprovement(model=model, best_f=tau,
-                                             maximize=False)
+                    ei = ExpectedImprovement(model=model, best_f=tau)
 
                     # optimize acquisition function
                     # TODO(LT): turn kwargs into command-line options
-                    cand, _ = optimize_acqf(acq_function=ei, bounds=bounds, q=1,
-                                            num_restarts=3, raw_samples=512,
+                    cand, b = optimize_acqf(acq_function=ei, bounds=bounds, q=1,
+                                            num_restarts=num_restarts,
+                                            raw_samples=raw_samples,
                                             options=dict(batch_limit=5, maxiter=200))
                     x_new = cand.squeeze(axis=0)
 

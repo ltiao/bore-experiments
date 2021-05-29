@@ -42,9 +42,10 @@ def get_loss_min(benchmark_name, data_dir=None):
     if benchmark_name.startswith("fcnet"):
         benchmark_name, dataset_name = benchmark_name.split('_')
         kws = dict(dataset_name=dataset_name, data_dir=data_dir)
-    elif benchmark_name.startswith("styblinski_tang") or \
-            benchmark_name.startswith("michalewicz") or \
-            benchmark_name.startswith("rosenbrock"):
+    elif any(map(benchmark_name.startswith, ("styblinski_tang",
+                                             "michalewicz",
+                                             "rosenbrock",
+                                             "ackley"))):
         *head, dimensions_str = benchmark_name.split('_')
         benchmark_name = '_'.join(head)
         dimensions = int(dimensions_str[:-1])
@@ -52,8 +53,6 @@ def get_loss_min(benchmark_name, data_dir=None):
 
     benchmark = make_benchmark(benchmark_name, **kws)
     loss_min = benchmark.get_minimum()
-
-    print(loss_min, benchmark_name, kws)
 
     return loss_min
 
