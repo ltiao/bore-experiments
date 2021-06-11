@@ -141,7 +141,7 @@ def main(name, gamma, output_dir, transparent, context, style, palette, width,
         fig.savefig(output_path.joinpath(f"objective_{suffix}.{ext}"), dpi=dpi,
                     transparent=transparent)
 
-    plt.show()
+    plt.clf()
     # %%
 
     load_observations = make_regression_dataset(latent)
@@ -178,7 +178,7 @@ def main(name, gamma, output_dir, transparent, context, style, palette, width,
         fig.savefig(output_path.joinpath(f"observations_{suffix}.{ext}"),
                     dpi=dpi, transparent=transparent)
 
-    plt.show()
+    plt.clf()
     # %%
 
     fig, ax = plt.subplots()
@@ -199,7 +199,7 @@ def main(name, gamma, output_dir, transparent, context, style, palette, width,
         fig.savefig(output_path.joinpath(f"ecdf_{suffix}.{ext}"), dpi=dpi,
                     transparent=transparent)
 
-    plt.show()
+    plt.clf()
     # %%
 
     fig, ax = plt.subplots()
@@ -246,7 +246,7 @@ def main(name, gamma, output_dir, transparent, context, style, palette, width,
         fig.savefig(output_path.joinpath(f"observations_ecdf_{suffix}.{ext}"),
                     dpi=dpi, transparent=transparent)
 
-    plt.show()
+    plt.clf()
     # %%
 
     fig, ax = plt.subplots()
@@ -269,7 +269,7 @@ def main(name, gamma, output_dir, transparent, context, style, palette, width,
         fig.savefig(output_path.joinpath(f"kde_seaborn_{suffix}.{ext}"),
                     dpi=dpi, transparent=transparent)
 
-    plt.show()
+    plt.clf()
     # %%
 
     kde_l = sm.nonparametric.KDEUnivariate(Xl.squeeze())
@@ -302,7 +302,7 @@ def main(name, gamma, output_dir, transparent, context, style, palette, width,
         fig.savefig(output_path.joinpath(f"kde_statsmodel_normal_reference_{suffix}.{ext}"),
                     dpi=dpi, transparent=transparent)
 
-    plt.show()
+    plt.clf()
     # %%
 
     fig, ax = plt.subplots()
@@ -330,7 +330,7 @@ def main(name, gamma, output_dir, transparent, context, style, palette, width,
         fig.savefig(output_path.joinpath(f"ratio_kde_statsmodel_normal_reference_{suffix}.{ext}"),
                     dpi=dpi, transparent=transparent)
 
-    plt.show()
+    plt.clf()
     # %%
     # START HERE
 
@@ -365,7 +365,7 @@ def main(name, gamma, output_dir, transparent, context, style, palette, width,
     ax.legend(loc="upper left")
 
     divider = make_axes_locatable(ax)
-    ax_top = divider.append_axes("top", size=0.6, pad=0.1, sharex=ax)
+    ax_top = divider.append_axes("top", size=0.9, pad=0.1, sharex=ax)
 
     # ax_top.plot(X_grid, kde_l.evaluate(X_grid.squeeze()), label=r"$\ell(x)$")
     # ax_top.plot(X_grid, kde_g.evaluate(X_grid.squeeze()), label=r"$g(x)$")
@@ -401,7 +401,7 @@ def main(name, gamma, output_dir, transparent, context, style, palette, width,
     #     ax_top.axvline(x_next, ymin=0.0, ymax=1.0, color=next_loc_color,
     #                    alpha=0.8, linewidth=1.0, zorder=10)
 
-    ax_right = divider.append_axes("right", size=0.6, pad=0.1, sharey=ax)
+    ax_right = divider.append_axes("right", size=0.9, pad=0.1, sharey=ax)
 
     sns.ecdfplot(y=y, c='tab:gray', ax=ax_right, zorder=-1)
 
@@ -428,7 +428,7 @@ def main(name, gamma, output_dir, transparent, context, style, palette, width,
     for ext in extension:
         fig.savefig(output_path.joinpath(f"header_{suffix}.{ext}"), dpi=dpi, transparent=transparent)
 
-    plt.show()
+    plt.clf()
 
     # HERE
 
@@ -488,7 +488,7 @@ def main(name, gamma, output_dir, transparent, context, style, palette, width,
     for ext in extension:
         fig.savefig(output_path.joinpath(f"summary_{suffix}.{ext}"), dpi=dpi, transparent=transparent)
 
-    plt.show()
+    plt.clf()
     # %%
 
     kde_l = KernelDensity(kernel='gaussian', bandwidth=bandwidth) \
@@ -520,7 +520,7 @@ def main(name, gamma, output_dir, transparent, context, style, palette, width,
         fig.savefig(output_path.joinpath(f"kde_sklearn_{suffix}.{ext}"),
                     dpi=dpi, transparent=transparent)
 
-    plt.show()
+    plt.clf()
     # %%
 
     fig, ax = plt.subplots()
@@ -547,7 +547,7 @@ def main(name, gamma, output_dir, transparent, context, style, palette, width,
         fig.savefig(output_path.joinpath(f"ratio_kde_sklearn_{suffix}.{ext}"),
                     dpi=dpi, transparent=transparent)
 
-    plt.show()
+    plt.clf()
     # %%
 
     amplitude = tfp.util.TransformedVariable(
@@ -602,7 +602,7 @@ def main(name, gamma, output_dir, transparent, context, style, palette, width,
         fig.savefig(output_path.joinpath(f"gp_posterior_predictive_{suffix}.{ext}"),
                     dpi=dpi, transparent=transparent)
 
-    plt.show()
+    plt.clf()
 
     gprm_marginals = tfd.Normal(loc=gprm.mean(), scale=gprm.stddev())
 
@@ -619,7 +619,7 @@ def main(name, gamma, output_dir, transparent, context, style, palette, width,
         fig.savefig(output_path.joinpath(f"ei_{suffix}.{ext}"), dpi=dpi,
                     transparent=transparent)
 
-    plt.show()
+    plt.clf()
 
     gammas = np.arange(0., 0.5, 0.15)
     y_quantiles = np.quantile(y, q=gammas)
@@ -652,7 +652,7 @@ def main(name, gamma, output_dir, transparent, context, style, palette, width,
         fig.savefig(output_path.joinpath(f"eis_{suffix}.{ext}"), dpi=dpi,
                     transparent=transparent)
 
-    plt.show()
+    plt.clf()
 
     return 0
 
