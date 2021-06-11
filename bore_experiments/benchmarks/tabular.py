@@ -30,7 +30,7 @@ class FCNet(Benchmark):
         self.dataset_name = dataset_name
         self.data_dir = data_dir
 
-    def __call__(self, kwargs, budget=100):
+    def evaluate(self, kwargs, budget=100):
         cs = self.get_config_space()
         config = kwargs_to_config(kwargs, config_space=cs)
         y, cost = self.benchmark.objective_function(config)
@@ -63,7 +63,7 @@ class FCNet(Benchmark):
 
 class FCNetAlt(FCNet):
 
-    def __call__(self, kwargs, budget=100):
+    def evaluate(self, kwargs, budget=100):
         original_cs = self.benchmark.get_configuration_space()
         c = original_cs.sample_configuration()
         c["n_units_1"] = original_cs.get_hyperparameter("n_units_1").sequence[kwargs["n_units_1"]]

@@ -22,18 +22,18 @@ class RacingLine(Benchmark):
         self.dimensions = len(self.nodes)
         self.theta = self.track.theta_track[self.nodes]
 
-    def __call__(self, kwargs, budget=None):
-        nodes = np.hstack([kwargs.get(f"node{d}") for d in range(self.dimensions)])
-        lap_time = self.func(nodes)
-        return Evaluation(value=lap_time, duration=None)
-
-    def func(self, nodes):
+    def __call__(self, nodes):
         rand_traj = randomTrajectory(track=self.track, n_waypoints=self.dimensions)
         wx, wy = rand_traj.calculate_xy(width=nodes,
                                         last_index=self.nodes[self.lastidx],
                                         theta=self.theta)
         x, y = rand_traj.fit_cubic_splines(wx=wx, wy=wy, n_samples=self.num_waypoints)
         return calcMinimumTime(x, y, **self.car)
+
+    def evaluate(self, kwargs, budget=None):
+        nodes = np.hstack([kwargs.get(f"node{d}") for d in range(self.dimensions)])
+        lap_time = self(nodes)
+        return Evaluation(value=lap_time, duration=None)
 
     def get_config_space(self):
 
