@@ -95,10 +95,14 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
     with output_path.joinpath("options.yaml").open('w') as f:
         yaml.dump(options, f)
 
+    n_jobs = 4
+
     for run_id in trange(run_start, num_runs, unit="run"):
 
         t_start = datetime.now()
         rows = []
+
+        random_state = np.random.RandomState(run_id)
 
         config_space = DenseConfigurationSpace(benchmark.get_config_space(),
                                                seed=run_id)
@@ -116,7 +120,6 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
         model.summary(print_fn=click.echo)
 
         record = Record()
-        random_state = np.random.RandomState(run_id)
 
         for i in range(num_iterations):
 
@@ -156,19 +159,23 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                 # X_batch = model.argmax_batch(batch_size=5, n_iter=2000, length_scale=None,
                 #                              step_size=1e-3, bounds=bounds)
 
-            # evaluate
-            y_next = benchmark.evaluate(kwargs).value
+            for j, x_next in enumerate(X_batch):
 
-            # update dataset
-            record.append(x=x_next, y=y_next)
+                # evaluate
+                y_next = benchmark.evaluate(kwargs).value
 
-            t = datetime.now()
-            delta = t - t_start
+                # update dataset
+                record.append(x=x_next, y=y_next)
 
-            row = dict(kwargs)
-            row["loss"] = y_next
-            row["finished"] = delta.total_seconds()
-            rows.append(row)
+                t = datetime.now()
+                delta = t - t_start
+
+                row = dict(kwargs)
+                row["iteration"] = i
+                row["foo"] = j
+                row["loss"] = y_next
+                row["finished"] = delta.total_seconds()
+                rows.append(row)
 
         data = pd.DataFrame(data=rows)
         data.to_csv(output_path.joinpath(f"{run_id:03d}.csv"))

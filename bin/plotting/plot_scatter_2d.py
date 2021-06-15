@@ -1,23 +1,23 @@
 import sys
 import click
 
-import pandas as pd
 import numpy as np
+import pandas as pd
+
 import json
 
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from pathlib import Path
 from matplotlib.colors import LogNorm
+from pathlib import Path
 
 from tqdm import trange
 
-from bore_experiments.benchmarks import Branin, Michalewicz, StyblinskiTang, GoldsteinPrice, SixHumpCamel
-from bore_experiments.plotting.utils import GOLDEN_RATIO, WIDTH, size, load_frame
+from bore.optimizers.utils import from_bounds
 
-
-OUTPUT_DIR = "figures/"
+from bore_experiments.plotting.utils import GOLDEN_RATIO, WIDTH, pt_to_in, load_frame
+from bore_experiments.benchmarks import make_benchmark
 
 
 def contour(X, Y, Z, ax=None, *args, **kwargs):
@@ -34,35 +34,44 @@ def contour(X, Y, Z, ax=None, *args, **kwargs):
 @click.argument("benchmark_name")
 @click.argument("method_name")
 @click.option('--num-runs', '-n', default=20)
-@click.option('--x-key', default='x0')
-@click.option('--y-key', default='x1')
+@click.option('--x-key', default='x')
+@click.option('--y-key', default='y')
 @click.option('--x-num', default=512)
 @click.option('--y-num', default=512)
 @click.option('--log-error-lim', type=(float, float), default=(-2, 3))
 @click.option('--num-error-levels', default=20)
-@click.option('--context', default="paper")
 @click.option('--col-wrap', default=4)
+@click.option('--transparent', is_flag=True)
+@click.option('--context', default="paper")
 @click.option('--style', default="ticks")
 @click.option('--palette', default="muted")
-@click.option('--width', '-w', type=float, default=WIDTH)
+@click.option('--width', '-w', type=float, default=pt_to_in(WIDTH))
+@click.option('--height', '-h', type=float)
 @click.option('--aspect', '-a', type=float, default=GOLDEN_RATIO)
+@click.option('--dpi', type=float, default=300)
 @click.option('--extension', '-e', multiple=True, default=["png"])
-@click.option("--input_dir", default="results",
+@click.option("--input_dir", default="results/",
               type=click.Path(file_okay=False, dir_okay=True))
-@click.option("--output-dir", default=OUTPUT_DIR,
+@click.option("--output-dir", default="figures/",
               type=click.Path(file_okay=False, dir_okay=True),
               help="Output directory.")
 def main(benchmark_name, method_name, num_runs, x_key, y_key, x_num, y_num,
-         log_error_lim, num_error_levels, col_wrap, context, style, palette,
-         width, aspect, extension, input_dir, output_dir):
+         log_error_lim, num_error_levels, col_wrap, transparent, context,
+         style, palette, width, height, aspect, dpi, extension,
+         input_dir, output_dir):
 
-    figsize = width_in, height_in = size(width, aspect)
-    height = width / aspect
-    suffix = f"{width:.0f}x{height:.0f}"
+    # preamble
+    if height is None:
+        height = width / aspect
+    # height *= num_iterations
+    # figsize = size(width, aspect)
+    figsize = (width, height)
+
+    suffix = f"{width*dpi:.0f}x{height*dpi:.0f}"
 
     rc = {
         "figure.figsize": figsize,
-        "font.serif": ['Times New Roman'],
+        "font.serif": ["Times New Roman"],
         "text.usetex": True,
     }
     sns.set(context=context, style=style, palette=palette, font="serif", rc=rc)
@@ -71,33 +80,16 @@ def main(benchmark_name, method_name, num_runs, x_key, y_key, x_num, y_num,
     output_path = Path(output_dir).joinpath(benchmark_name, method_name)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    if benchmark_name == "branin":
-        benchmark = Branin()
-        def func(x, y):
-            return benchmark(x, y) - benchmark.get_minimum()
-    elif benchmark_name == "goldstein_price":
-        benchmark = GoldsteinPrice()
-        def func(x, y):
-            return benchmark.func(x, y) - benchmark.get_minimum()
-    elif benchmark_name == "six_hump_camel":
-        benchmark = SixHumpCamel()
-        def func(x, y):
-            return benchmark.func(x, y) - benchmark.get_minimum()
-    elif benchmark_name == "styblinski_tang_002d":
-        benchmark = StyblinskiTang(dimensions=2)
-        def func(x, y):
-            return benchmark.func(np.dstack([x, y])) - benchmark.get_minimum()
-    elif benchmark_name == "michalewicz_002d":
-        benchmark = Michalewicz(dimensions=2)
-        def func(x, y):
-            return benchmark.func(np.dstack([x, y]), m=benchmark.m) - benchmark.get_minimum()
+    benchmark = make_benchmark(benchmark_name)
 
-    cs = benchmark.get_config_space()
-    hx = cs.get_hyperparameter(x_key)
-    hy = cs.get_hyperparameter(y_key)
+    bounds = benchmark.get_bounds()
+    (low, high), input_dim = from_bounds(bounds)
+    (x1_min, x2_min), (x1_max, x2_max) = low, high
 
-    y, x = np.ogrid[hy.lower:hy.upper:y_num * 1j, hx.lower:hx.upper:x_num * 1j]
-    X, Y = np.broadcast_arrays(x, y)
+    x2, x1 = np.ogrid[x2_min:x2_max:y_num*1j,
+                      x1_min:x1_max:x_num*1j]
+    X1, X2 = np.broadcast_arrays(x1, x2)
+    Y = benchmark(X1, X2) - benchmark.get_minimum()
 
     frames = []
     for run in trange(num_runs):
@@ -111,16 +103,15 @@ def main(benchmark_name, method_name, num_runs, x_key, y_key, x_num, y_num,
 
     # TODO: height should actually be `height_in / row_wrap`, but we don't
     # know what `row_wrap` is.
-    g = sns.relplot(x=x_key, y=y_key, hue="evaluation", size="error",
+    g = sns.relplot(x=x_key, y=y_key, hue="batch",  # size="error",
                     col="run", col_wrap=col_wrap,
-                    palette="cividis_r", alpha=0.8,
-                    height=height_in / col_wrap, aspect=aspect,
+                    palette="mako_r", alpha=0.8,
+                    height=height, aspect=aspect,
                     kind="scatter", data=data, rasterized=True)
-                    # facet_kws=dict(subplot_kws=dict(rasterized=True)))
-    g.map(contour, X=X, Y=Y, Z=func(X, Y),
+    # facet_kws=dict(subplot_kws=dict(rasterized=True)))
+    g.map(contour, X=X1, Y=X2, Z=Y,
           levels=np.logspace(*log_error_lim, num_error_levels),
-          norm=LogNorm(),
-          alpha=0.4, cmap="turbo", zorder=-1)
+          norm=LogNorm(), alpha=0.4, cmap="turbo", zorder=-1)
 
     for ext in extension:
         g.savefig(output_path.joinpath(f"scatter_{context}_{suffix}.{ext}"))
