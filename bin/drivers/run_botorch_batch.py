@@ -8,7 +8,9 @@ import pandas as pd
 from botorch.models import FixedNoiseGP
 from gpytorch.mlls import ExactMarginalLogLikelihood
 from botorch.fit import fit_gpytorch_model
-from botorch.acquisition import ExpectedImprovement
+# from botorch.acquisition import ExpectedImprovement
+from botorch.acquisition.monte_carlo import qExpectedImprovement
+from botorch.sampling.samplers import SobolQMCNormalSampler
 from botorch.optim import optimize_acqf
 from botorch.utils import standardize
 from botorch.utils.sampling import draw_sobol_samples
@@ -37,7 +39,7 @@ def create_bounds(bounds, device=None, dtype=None):
 @click.argument("benchmark_name")
 @click.option("--dataset-name", help="Dataset to use for `fcnet` benchmark.")
 @click.option("--dimensions", type=int, help="Dimensions to use for `michalewicz` and `styblinski_tang` benchmarks.")
-@click.option("--method-name", default="gp-botorch")
+@click.option("--method-name", default="gp-botorch-batch")
 @click.option("--num-runs", "-n", default=20)
 @click.option("--run-start", default=0)
 @click.option("--num-iterations", "-i", default=500)
@@ -47,6 +49,8 @@ def create_bounds(bounds, device=None, dtype=None):
 @click.option("--gamma", default=0., type=click.FloatRange(0., 1.),
               help="Quantile, or mixing proportion.")
 @click.option("--num-random-init", default=10)
+@click.option("--mc-samples", default=256)
+@click.option("--batch-size", default=4)
 @click.option("--num-restarts", default=10)
 @click.option("--raw-samples", default=512)
 # @click.option('--use-ard', is_flag=True)
@@ -61,7 +65,8 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
          run_start, num_iterations,
          # acquisition_name,
          # acquisition_optimizer_name,
-         gamma, num_random_init, num_restarts, raw_samples,
+         gamma, num_random_init, mc_samples, batch_size,
+         num_restarts, raw_samples,
          # use_ard,
          # use_input_warping,
          input_dir, output_dir):
@@ -83,6 +88,7 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
     output_path.mkdir(parents=True, exist_ok=True)
 
     options = dict(gamma=gamma, num_random_init=num_random_init,
+                   mc_samples=mc_samples, batch_size=batch_size,
                    num_restarts=num_restarts, raw_samples=raw_samples)
     with output_path.joinpath("options.yaml").open('w') as f:
         yaml.dump(options, f)
@@ -107,7 +113,7 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
 
         t_start = datetime.now()
 
-        rows = []
+        frames = []
 
         features = []
         targets = []
@@ -116,13 +122,13 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
 
         with trange(num_iterations) as iterations:
 
-            for i in iterations:
+            for batch in iterations:
 
-                if i < num_random_init:
+                if len(targets) < num_random_init:
                     # click.echo(f"Completed {i}/{num_random_init} initial runs. "
                     #            "Suggesting random candidate...")
                     # TODO(LT): support random seed
-                    x_new = torch.rand(size=(dim,), device=device, dtype=dtype)
+                    X_batch = torch.rand(size=(batch_size, dim), device=device, dtype=dtype)
                 else:
                     # scaler = StandardScaler()
 
@@ -146,34 +152,44 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                     tau = torch.quantile(z, q=1-gamma)
                     iterations.set_postfix(tau=tau.item())
 
-                    ei = ExpectedImprovement(model=model, best_f=tau)
+                    qmc_sampler = SobolQMCNormalSampler(num_samples=mc_samples)
+
+                    ei = qExpectedImprovement(model=model, best_f=tau,
+                                              sampler=qmc_sampler)
 
                     # optimize acquisition function
                     # TODO(LT): turn kwargs into command-line options
                     X_batch, b = optimize_acqf(acq_function=ei, bounds=bounds,
-                                               q=1,
+                                               q=batch_size,
                                                num_restarts=num_restarts,
                                                raw_samples=raw_samples,
                                                options=dict(batch_limit=5,
                                                             maxiter=200))
-                    x_new = X_batch[0]  # cand.squeeze(axis=0)
 
-                # evaluate blackbox objective
-                y_new = func(x_new)
+                # TODO(LT): Deliberately not doing broadcasting for now since
+                # batch sizes are so small anyway. Can revisit later if there
+                # is a compelling reason to do it.
+                rows = []
+                for x_new in X_batch:
 
-                # update dataset
-                features.append(x_new)
-                targets.append(y_new)
+                    y_new = func(x_new)
 
-                t = datetime.now()
-                delta = t - t_start
+                    t = datetime.now()
+                    delta = t - t_start
 
-                row = dict_from_tensor(x_new, cs=config_space)
-                row["loss"] = y_new.item()
-                row["finished"] = delta.total_seconds()
-                rows.append(row)
+                    # update dataset
+                    features.append(x_new)
+                    targets.append(y_new)
 
-        data = pd.DataFrame(data=rows)
+                    row = dict_from_tensor(x_new, cs=config_space)
+                    row["loss"] = y_new.item()
+                    row["finished"] = delta.total_seconds()
+                    rows.append(row)
+
+                frame = pd.DataFrame(data=rows).assign(batch=batch)
+                frames.append(frame)
+
+        data = pd.concat(frames, axis="index", ignore_index=True, sort=True)
         data.to_csv(output_path.joinpath(f"{run_id:03d}.csv"))
 
     return 0
