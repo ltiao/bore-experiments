@@ -1,11 +1,12 @@
 from .synthetic import (Ackley, Branin, GoldsteinPrice, Rosenbrock,
                         SixHumpCamel, StyblinskiTang, Michalewicz, Hartmann3D,
-                        Hartmann6D)
+                        Hartmann6D, Forrester)
 from .tabular import FCNet, FCNetAlt
 from .racing import (UCBF110RacingLine, ETHZORCARacingLine,
                      ETHZMobilORCARacingLine)
 
 benchmarks = dict(
+    forrester=Forrester,
     branin=Branin,
     goldstein_price=GoldsteinPrice,
     six_hump_camel=SixHumpCamel,
