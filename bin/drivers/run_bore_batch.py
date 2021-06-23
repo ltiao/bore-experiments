@@ -12,7 +12,8 @@ from bore.data import Record
 from bore.models import BatchMaximizableSequential
 from bore.optimizers.svgd.base import DistortionExpDecay
 from bore.plugins.hpbandster.types import (DenseConfigurationSpace,
-                                           array_from_dict, dict_from_array)
+                                           DenseConfiguration, array_from_dict,
+                                           dict_from_array)
 
 from bore_experiments.benchmarks import make_benchmark
 from bore_experiments.utils import make_name
@@ -27,8 +28,12 @@ def get_steps_per_epoch(batch_size, dataset_size):
     return int(np.ceil(np.true_divide(dataset_size, batch_size)))
 
 
-def is_unique(record, res):
-    return not record.is_duplicate(res.x)
+def is_unique(record):
+
+    def func(res):
+        return not record.is_duplicate(res.x)
+
+    return func
 
 
 @click.command()
@@ -45,10 +50,11 @@ def is_unique(record, res):
 @click.option("--gamma", default=0.25, type=click.FloatRange(0., 1.),
               help="Quantile, or mixing proportion.")
 @click.option("--num-random-init", default=10)
+@click.option("--batch-size", default=4)
 @click.option("--random-rate", default=0.1, type=click.FloatRange(0., 1.))
 @click.option("--num-starts", default=5)
 @click.option("--num-samples", default=1024)
-@click.option("--batch-size", default=64)
+@click.option("--batch-size-training", default=64)
 @click.option("--num-steps-per-iter", default=100)
 @click.option("--num-epochs", type=int)
 @click.option("--optimizer", default="adam")
@@ -58,6 +64,8 @@ def is_unique(record, res):
 @click.option('--transform', default="sigmoid")
 @click.option("--method", default="L-BFGS-B")
 @click.option("--max-iter", default=1000)
+@click.option("--step-size", default=1e-3)
+@click.option("--length-scale")
 @click.option("--ftol", default=1e-9)
 @click.option("--input-dir", default="datasets/fcnet_tabular_benchmarks",
               type=click.Path(file_okay=False, dir_okay=True),
@@ -67,10 +75,10 @@ def is_unique(record, res):
               help="Output directory.")
 def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
          run_start, num_iterations, eta, min_budget, max_budget, gamma,
-         num_random_init, random_rate, num_starts, num_samples,
-         batch_size, num_steps_per_iter, num_epochs, optimizer,
-         num_layers, num_units, activation, transform, method, max_iter, ftol,
-         input_dir, output_dir):
+         num_random_init, batch_size, random_rate, num_starts, num_samples,
+         batch_size_training, num_steps_per_iter, num_epochs, optimizer,
+         num_layers, num_units, activation, transform, method, max_iter,
+         step_size, length_scale, ftol, input_dir, output_dir):
 
     benchmark = make_benchmark(benchmark_name,
                                dimensions=dimensions,
@@ -85,22 +93,27 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
 
     options = dict(eta=eta, min_budget=min_budget, max_budget=max_budget,
                    gamma=gamma, num_random_init=num_random_init,
-                   random_rate=random_rate,
+                   batch_size=batch_size, random_rate=random_rate,
                    num_starts=num_starts, num_samples=num_samples,
-                   batch_size=batch_size, num_steps_per_iter=num_steps_per_iter,
+                   batch_size_training=batch_size_training,
+                   num_steps_per_iter=num_steps_per_iter,
                    num_epochs=num_epochs, optimizer=optimizer,
                    num_layers=num_layers, num_units=num_units,
                    activation=activation, transform=transform, method=method,
-                   max_iter=max_iter, ftol=ftol)
+                   max_iter=max_iter, step_size=step_size,
+                   length_scale=length_scale, ftol=ftol)
     with output_path.joinpath("options.yaml").open('w') as f:
         yaml.dump(options, f)
 
-    n_jobs = 4
+    # def func(array):
+    #     config = dict_from_array(config_space, x_next)
+    #     return benchmark.evaluate(config).value
 
     for run_id in trange(run_start, num_runs, unit="run"):
 
         t_start = datetime.now()
-        rows = []
+
+        frames = []
 
         random_state = np.random.RandomState(run_id)
 
@@ -121,63 +134,80 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
 
         record = Record()
 
-        for i in range(num_iterations):
+        with trange(num_iterations) as iterations:
 
-            config_random = config_space.sample_configuration()
-            if i < num_random_init:
-                x_next = config_random.to_array()
-                kwargs = config_random.get_dictionary()
-            else:
-                # construct binary classification problem
-                X, z = record.load_classification_data(gamma)
+            for batch in iterations:
 
-                if num_epochs is None:
-                    dataset_size = record.size()
-                    steps_per_epoch = get_steps_per_epoch(batch_size,
-                                                          dataset_size)
-                    num_epochs = num_steps_per_iter // steps_per_epoch
-
-                # update classifier
-                model.fit(X, z, epochs=num_epochs, batch_size=batch_size,
-                          verbose=False)
-
-                # suggest new candidate
-                opt = model.argmax(method=method, bounds=bounds,
-                                   num_starts=num_starts,
-                                   num_samples=num_samples,
-                                   options=dict(maxiter=max_iter, ftol=ftol),
-                                   filter_fn=partial(is_unique, record),
-                                   print_fn=click.echo,
-                                   random_state=random_state)
-                if opt is None:
-                    x_next = config_random.to_array()
-                    kwargs = config_random.get_dictionary()
+                if record.size() < num_random_init:
+                    # config_batch = config_space.sample_configuration(size=batch_size)
+                    # X_batch = [config.to_array() for config in config_batch]
+                    X_batch = random_state.uniform(low=bounds.lb,
+                                                   high=bounds.ub,
+                                                   size=(batch_size, input_dim))
                 else:
-                    x_next = opt.x
-                    kwargs = dict_from_array(config_space, x_next)
+                    # construct binary classification problem
+                    X, z = record.load_classification_data(gamma)
 
-                # X_batch = model.argmax_batch(batch_size=5, n_iter=2000, length_scale=None,
-                #                              step_size=1e-3, bounds=bounds)
+                    if num_epochs is None:
+                        dataset_size = record.size()
+                        steps_per_epoch = get_steps_per_epoch(batch_size_training,
+                                                              dataset_size)
+                        num_epochs = num_steps_per_iter // steps_per_epoch
 
-            for j, x_next in enumerate(X_batch):
+                    # update classifier
+                    model.fit(X, z, epochs=num_epochs,
+                              batch_size=batch_size_training, verbose=False)
 
-                # evaluate
-                y_next = benchmark.evaluate(kwargs).value
+                    # suggest new candidate
+                    # opt = model.argmax(method=method, bounds=bounds,
+                    #                    num_starts=num_starts,
+                    #                    num_samples=num_samples,
+                    #                    options=dict(maxiter=max_iter, ftol=ftol),
+                    #                    filter_fn=is_unique(record),
+                    #                    print_fn=click.echo,
+                    #                    random_state=random_state)
 
-                # update dataset
-                record.append(x=x_next, y=y_next)
+                    # if opt is None:
+                    #     x_next = config_random.to_array()
+                    #     config = config_random.get_dictionary()
+                    # else:
+                    #     x_next = opt.x
+                    #     config = dict_from_array(config_space, x_next)
 
-                t = datetime.now()
-                delta = t - t_start
+                    X_batch = model.argmax_batch(batch_size=batch_size,
+                                                 n_iter=max_iter,
+                                                 length_scale=length_scale,
+                                                 step_size=step_size,
+                                                 bounds=bounds,
+                                                 random_state=random_state)
 
-                row = dict(kwargs)
-                row["iteration"] = i
-                row["foo"] = j
-                row["loss"] = y_next
-                row["finished"] = delta.total_seconds()
-                rows.append(row)
+                # TODO(LT): Deliberately not doing broadcasting for now since
+                # batch sizes are so small anyway. Can revisit later if there
+                # is a compelling reason to do it.
+                rows = []
+                for j, x_next in enumerate(X_batch):
 
-        data = pd.DataFrame(data=rows)
+                    config = dict_from_array(config_space, x_next)
+
+                    # evaluate
+                    y_next = benchmark.evaluate(config).value
+
+                    t = datetime.now()
+                    delta = t - t_start
+
+                    # update dataset
+                    record.append(x=x_next, y=y_next)
+
+                    row = dict(config)
+                    row["batch"] = batch
+                    row["loss"] = y_next
+                    row["finished"] = delta.total_seconds()
+                    rows.append(row)
+
+                frame = pd.DataFrame(data=rows)  # .assign(batch=batch)
+                frames.append(frame)
+
+        data = pd.concat(frames, axis="index", ignore_index=True, sort=True)
         data.to_csv(output_path.joinpath(f"{run_id:03d}.csv"))
 
     return 0

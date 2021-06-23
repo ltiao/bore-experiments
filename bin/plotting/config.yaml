@@ -6,3 +6,6 @@ names:
   bore-elu-25: BORE
   gp-botorch: BO-GP (EI)
   smac: SMAC
+  bore-batch: QS-BORE
+  gp-botorch-batch: GP (MC $q$-EI)
+  gp-botorch-std-batch: GP (standardized; MC $q$-EI)

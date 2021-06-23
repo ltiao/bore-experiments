@@ -49,6 +49,7 @@ def create_bounds(bounds, device=None, dtype=None):
 @click.option("--num-random-init", default=10)
 @click.option("--num-restarts", default=10)
 @click.option("--raw-samples", default=512)
+@click.option("--noise-variance-init", default=5e-2)
 # @click.option('--use-ard', is_flag=True)
 # @click.option('--use-input-warping', is_flag=True)
 @click.option("--input-dir", default="datasets/fcnet_tabular_benchmarks",
@@ -61,7 +62,8 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
          run_start, num_iterations,
          # acquisition_name,
          # acquisition_optimizer_name,
-         gamma, num_random_init, num_restarts, raw_samples,
+         gamma, num_random_init,
+         num_restarts, raw_samples, noise_variance_init,
          # use_ard,
          # use_input_warping,
          input_dir, output_dir):
@@ -83,13 +85,14 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
     output_path.mkdir(parents=True, exist_ok=True)
 
     options = dict(gamma=gamma, num_random_init=num_random_init,
-                   num_restarts=num_restarts, raw_samples=raw_samples)
+                   num_restarts=num_restarts, raw_samples=raw_samples,
+                   noise_variance_init=noise_variance_init)
     with output_path.joinpath("options.yaml").open('w') as f:
         yaml.dump(options, f)
 
     config_space = DenseConfigurationSpace(benchmark.get_config_space())
     bounds = create_bounds(config_space.get_bounds(), device=device, dtype=dtype)
-    dim = config_space.get_dimensions()
+    input_dim = config_space.get_dimensions()
 
     def func(tensor, *args, **kwargs):
         """
@@ -113,63 +116,66 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
         targets = []
 
         noise_variance = torch.tensor(noise_variance_init, device=device, dtype=dtype)
+        state_dict = None
 
         with trange(num_iterations) as iterations:
 
             for i in iterations:
 
-                if i < num_random_init:
+                if len(targets) < num_random_init:
                     # click.echo(f"Completed {i}/{num_random_init} initial runs. "
                     #            "Suggesting random candidate...")
                     # TODO(LT): support random seed
-                    x_new = torch.rand(size=(dim,), device=device, dtype=dtype)
+                    x_new = torch.rand(size=(input_dim,), device=device, dtype=dtype)
                 else:
-                    # scaler = StandardScaler()
 
                     # construct dataset
                     X = torch.vstack(features)
                     y = torch.hstack(targets).unsqueeze(axis=-1)
                     z = standardize(y)
 
-                    # TODO(LT): persist model state
                     # construct model
                     # model = FixedNoiseGP(X, standardize(y), noise_variance.expand_as(y),
                     model = FixedNoiseGP(X, z, noise_variance.expand_as(y),
                                          input_transform=None).to(X)
                     mll = ExactMarginalLogLikelihood(model.likelihood, model)
 
+                    if state_dict is not None:
+                        model.load_state_dict(state_dict)
+
                     # update model
                     fit_gpytorch_model(mll)
 
                     # construct acquisition function
-                    # TODO(LT): standardize?
                     tau = torch.quantile(z, q=1-gamma)
                     iterations.set_postfix(tau=tau.item())
 
                     ei = ExpectedImprovement(model=model, best_f=tau)
 
                     # optimize acquisition function
-                    # TODO(LT): turn kwargs into command-line options
                     X_batch, b = optimize_acqf(acq_function=ei, bounds=bounds,
                                                q=1,
                                                num_restarts=num_restarts,
                                                raw_samples=raw_samples,
                                                options=dict(batch_limit=5,
                                                             maxiter=200))
-                    x_new = X_batch[0]  # cand.squeeze(axis=0)
+                    x_new = X_batch.squeeze(axis=0)
+
+                    state_dict = model.state_dict()
 
                 # evaluate blackbox objective
+                t0 = datetime.now()
                 y_new = func(x_new)
+                t1 = datetime.now()
+
+                delta = t1 - t_start
 
                 # update dataset
                 features.append(x_new)
                 targets.append(y_new)
 
-                t = datetime.now()
-                delta = t - t_start
-
                 row = dict_from_tensor(x_new, cs=config_space)
-                row["loss"] = y_new.item()
+                row["loss"] = - y_new.item()
                 row["finished"] = delta.total_seconds()
                 rows.append(row)
 

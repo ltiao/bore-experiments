@@ -49,10 +49,11 @@ def create_bounds(bounds, device=None, dtype=None):
 @click.option("--gamma", default=0., type=click.FloatRange(0., 1.),
               help="Quantile, or mixing proportion.")
 @click.option("--num-random-init", default=10)
-@click.option("--mc-samples", default=256)
 @click.option("--batch-size", default=4)
+@click.option("--mc-samples", default=256)
 @click.option("--num-restarts", default=10)
 @click.option("--raw-samples", default=512)
+@click.option("--noise-variance-init", default=5e-2)
 # @click.option('--use-ard', is_flag=True)
 # @click.option('--use-input-warping', is_flag=True)
 @click.option("--input-dir", default="datasets/fcnet_tabular_benchmarks",
@@ -66,7 +67,7 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
          # acquisition_name,
          # acquisition_optimizer_name,
          gamma, num_random_init, mc_samples, batch_size,
-         num_restarts, raw_samples,
+         num_restarts, raw_samples, noise_variance_init,
          # use_ard,
          # use_input_warping,
          input_dir, output_dir):
@@ -89,13 +90,14 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
 
     options = dict(gamma=gamma, num_random_init=num_random_init,
                    mc_samples=mc_samples, batch_size=batch_size,
-                   num_restarts=num_restarts, raw_samples=raw_samples)
+                   num_restarts=num_restarts, raw_samples=raw_samples,
+                   noise_variance_init=noise_variance_init)
     with output_path.joinpath("options.yaml").open('w') as f:
         yaml.dump(options, f)
 
     config_space = DenseConfigurationSpace(benchmark.get_config_space())
     bounds = create_bounds(config_space.get_bounds(), device=device, dtype=dtype)
-    dim = config_space.get_dimensions()
+    input_dim = config_space.get_dimensions()
 
     def func(tensor, *args, **kwargs):
         """
@@ -105,9 +107,6 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
         # turn into maximization problem
         res = - benchmark.evaluate(config).value
         return torch.tensor(res, device=device, dtype=dtype)
-
-    # TODO(LT): make initial value option
-    noise_variance_init = 1e-3
 
     for run_id in trange(run_start, num_runs, unit="run"):
 
@@ -119,6 +118,7 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
         targets = []
 
         noise_variance = torch.tensor(noise_variance_init, device=device, dtype=dtype)
+        state_dict = None
 
         with trange(num_iterations) as iterations:
 
@@ -128,37 +128,37 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                     # click.echo(f"Completed {i}/{num_random_init} initial runs. "
                     #            "Suggesting random candidate...")
                     # TODO(LT): support random seed
-                    X_batch = torch.rand(size=(batch_size, dim), device=device, dtype=dtype)
+                    X_batch = torch.rand(size=(batch_size, input_dim),
+                                         device=device, dtype=dtype)
                 else:
-                    # scaler = StandardScaler()
 
                     # construct dataset
                     X = torch.vstack(features)
                     y = torch.hstack(targets).unsqueeze(axis=-1)
                     z = standardize(y)
 
-                    # TODO(LT): persist model state
                     # construct model
                     # model = FixedNoiseGP(X, standardize(y), noise_variance.expand_as(y),
                     model = FixedNoiseGP(X, z, noise_variance.expand_as(y),
                                          input_transform=None).to(X)
                     mll = ExactMarginalLogLikelihood(model.likelihood, model)
 
+                    if state_dict is not None:
+                        model.load_state_dict(state_dict)
+
                     # update model
                     fit_gpytorch_model(mll)
 
                     # construct acquisition function
-                    # TODO(LT): standardize?
                     tau = torch.quantile(z, q=1-gamma)
                     iterations.set_postfix(tau=tau.item())
 
+                    # suggest batch
                     qmc_sampler = SobolQMCNormalSampler(num_samples=mc_samples)
-
                     ei = qExpectedImprovement(model=model, best_f=tau,
                                               sampler=qmc_sampler)
 
                     # optimize acquisition function
-                    # TODO(LT): turn kwargs into command-line options
                     X_batch, b = optimize_acqf(acq_function=ei, bounds=bounds,
                                                q=batch_size,
                                                num_restarts=num_restarts,
@@ -166,27 +166,33 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                                                options=dict(batch_limit=5,
                                                             maxiter=200))
 
+                    state_dict = model.state_dict()
+
+                batch_start = datetime.now()
                 # TODO(LT): Deliberately not doing broadcasting for now since
                 # batch sizes are so small anyway. Can revisit later if there
                 # is a compelling reason to do it.
                 rows = []
-                for x_new in X_batch:
+                for j, x_new in enumerate(X_batch):
 
+                    # evaluate blackbox objective
+                    t0 = datetime.now()
                     y_new = func(x_new)
+                    t1 = datetime.now()
 
-                    t = datetime.now()
-                    delta = t - t_start
+                    delta = t1 - t0 + batch_start - t_start
 
                     # update dataset
                     features.append(x_new)
                     targets.append(y_new)
 
                     row = dict_from_tensor(x_new, cs=config_space)
-                    row["loss"] = y_new.item()
+                    row["batch"] = batch
+                    row["loss"] = - y_new.item()
                     row["finished"] = delta.total_seconds()
                     rows.append(row)
 
-                frame = pd.DataFrame(data=rows).assign(batch=batch)
+                frame = pd.DataFrame(data=rows)
                 frames.append(frame)
 
         data = pd.concat(frames, axis="index", ignore_index=True, sort=True)
