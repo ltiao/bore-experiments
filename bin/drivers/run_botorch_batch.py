@@ -8,13 +8,10 @@ import pandas as pd
 from botorch.models import FixedNoiseGP
 from gpytorch.mlls import ExactMarginalLogLikelihood
 from botorch.fit import fit_gpytorch_model
-# from botorch.acquisition import ExpectedImprovement
 from botorch.acquisition.monte_carlo import qExpectedImprovement
 from botorch.sampling.samplers import SobolQMCNormalSampler
 from botorch.optim import optimize_acqf
 from botorch.utils import standardize
-from botorch.utils.sampling import draw_sobol_samples
-# from sklearn.preprocessing import StandardScaler
 
 from pathlib import Path
 from tqdm import trange
@@ -56,6 +53,7 @@ def create_bounds(bounds, device=None, dtype=None):
 @click.option("--noise-variance-init", default=5e-2)
 # @click.option('--use-ard', is_flag=True)
 # @click.option('--use-input-warping', is_flag=True)
+@click.option('--standardize-targets/--no-standardize-targets', default=True)
 @click.option("--input-dir", default="datasets/fcnet_tabular_benchmarks",
               type=click.Path(file_okay=False, dir_okay=True),
               help="Input data directory.")
@@ -70,6 +68,7 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
          num_restarts, raw_samples, noise_variance_init,
          # use_ard,
          # use_input_warping,
+         standardize_targets,
          input_dir, output_dir):
 
     # TODO(LT): Turn into options
@@ -91,7 +90,8 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
     options = dict(gamma=gamma, num_random_init=num_random_init,
                    mc_samples=mc_samples, batch_size=batch_size,
                    num_restarts=num_restarts, raw_samples=raw_samples,
-                   noise_variance_init=noise_variance_init)
+                   noise_variance_init=noise_variance_init,
+                   standardize_targets=standardize_targets)
     with output_path.joinpath("options.yaml").open('w') as f:
         yaml.dump(options, f)
 
@@ -110,7 +110,7 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
 
     for run_id in trange(run_start, num_runs, unit="run"):
 
-        t_start = datetime.now()
+        run_begin_t = batch_end_t_adj = batch_end_t = datetime.now()
 
         frames = []
 
@@ -135,11 +135,11 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                     # construct dataset
                     X = torch.vstack(features)
                     y = torch.hstack(targets).unsqueeze(axis=-1)
-                    z = standardize(y)
+                    y = standardize(y) if standardize_targets else y
 
                     # construct model
                     # model = FixedNoiseGP(X, standardize(y), noise_variance.expand_as(y),
-                    model = FixedNoiseGP(X, z, noise_variance.expand_as(y),
+                    model = FixedNoiseGP(X, y, noise_variance.expand_as(y),
                                          input_transform=None).to(X)
                     mll = ExactMarginalLogLikelihood(model.likelihood, model)
 
@@ -150,10 +150,9 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                     fit_gpytorch_model(mll)
 
                     # construct acquisition function
-                    tau = torch.quantile(z, q=1-gamma)
+                    tau = torch.quantile(y, q=1-gamma)
                     iterations.set_postfix(tau=tau.item())
 
-                    # suggest batch
                     qmc_sampler = SobolQMCNormalSampler(num_samples=mc_samples)
                     ei = qExpectedImprovement(model=model, best_f=tau,
                                               sampler=qmc_sampler)
@@ -168,29 +167,46 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
 
                     state_dict = model.state_dict()
 
-                batch_start = datetime.now()
+                batch_begin_t = eval_begin_t = datetime.now()
+                batch_begin_t_adj = batch_begin_t - (batch_end_t - batch_end_t_adj)
+
+                eval_end_times = []
+
                 # TODO(LT): Deliberately not doing broadcasting for now since
                 # batch sizes are so small anyway. Can revisit later if there
                 # is a compelling reason to do it.
                 rows = []
-                for j, x_new in enumerate(X_batch):
+                for j, x_next in enumerate(X_batch):
 
                     # evaluate blackbox objective
-                    t0 = datetime.now()
-                    y_new = func(x_new)
-                    t1 = datetime.now()
+                    y_next = func(x_next)
 
-                    delta = t1 - t0 + batch_start - t_start
+                    # eval end time
+                    eval_end_t = datetime.now()
+                    # eval duration
+                    duration = eval_end_t - eval_begin_t
+                    # adjusted eval end time is the duration added to the
+                    # time at which batch eval was started
+                    eval_end_t_adj = batch_begin_t_adj + duration
+                    # start time for next evaluation is the end time for the
+                    # previous evaluation
+                    eval_begin_t = eval_end_t
+
+                    eval_end_times.append(eval_end_t_adj)
+                    elapsed = eval_end_t_adj - run_begin_t
 
                     # update dataset
-                    features.append(x_new)
-                    targets.append(y_new)
+                    features.append(x_next)
+                    targets.append(y_next)
 
-                    row = dict_from_tensor(x_new, cs=config_space)
+                    row = dict_from_tensor(x_next, cs=config_space)
                     row["batch"] = batch
-                    row["loss"] = - y_new.item()
-                    row["finished"] = delta.total_seconds()
+                    row["loss"] = - y_next.item()
+                    row["finished"] = elapsed.total_seconds()
                     rows.append(row)
+
+                batch_end_t = datetime.now()
+                batch_end_t_adj = max(eval_end_times)
 
                 frame = pd.DataFrame(data=rows)
                 frames.append(frame)
