@@ -11,8 +11,6 @@ from botorch.fit import fit_gpytorch_model
 from botorch.acquisition import ExpectedImprovement
 from botorch.optim import optimize_acqf
 from botorch.utils import standardize
-from botorch.utils.sampling import draw_sobol_samples
-# from sklearn.preprocessing import StandardScaler
 
 from pathlib import Path
 from tqdm import trange
@@ -52,6 +50,7 @@ def create_bounds(bounds, device=None, dtype=None):
 @click.option("--noise-variance-init", default=5e-2)
 # @click.option('--use-ard', is_flag=True)
 # @click.option('--use-input-warping', is_flag=True)
+@click.option('--standardize-targets/--no-standardize-targets', default=True)
 @click.option("--input-dir", default="datasets/fcnet_tabular_benchmarks",
               type=click.Path(file_okay=False, dir_okay=True),
               help="Input data directory.")
@@ -66,6 +65,7 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
          num_restarts, raw_samples, noise_variance_init,
          # use_ard,
          # use_input_warping,
+         standardize_targets,
          input_dir, output_dir):
 
     # TODO(LT): Turn into options
@@ -86,7 +86,8 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
 
     options = dict(gamma=gamma, num_random_init=num_random_init,
                    num_restarts=num_restarts, raw_samples=raw_samples,
-                   noise_variance_init=noise_variance_init)
+                   noise_variance_init=noise_variance_init,
+                   standardize_targets=standardize_targets)
     with output_path.joinpath("options.yaml").open('w') as f:
         yaml.dump(options, f)
 
@@ -102,9 +103,6 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
         # turn into maximization problem
         res = - benchmark.evaluate(config).value
         return torch.tensor(res, device=device, dtype=dtype)
-
-    # TODO(LT): make initial value option
-    noise_variance_init = 1e-3
 
     for run_id in trange(run_start, num_runs, unit="run"):
 
@@ -132,11 +130,11 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                     # construct dataset
                     X = torch.vstack(features)
                     y = torch.hstack(targets).unsqueeze(axis=-1)
-                    z = standardize(y)
+                    y = standardize(y) if standardize_targets else y
 
                     # construct model
                     # model = FixedNoiseGP(X, standardize(y), noise_variance.expand_as(y),
-                    model = FixedNoiseGP(X, z, noise_variance.expand_as(y),
+                    model = FixedNoiseGP(X, y, noise_variance.expand_as(y),
                                          input_transform=None).to(X)
                     mll = ExactMarginalLogLikelihood(model.likelihood, model)
 
@@ -147,7 +145,7 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                     fit_gpytorch_model(mll)
 
                     # construct acquisition function
-                    tau = torch.quantile(z, q=1-gamma)
+                    tau = torch.quantile(y, q=1-gamma)
                     iterations.set_postfix(tau=tau.item())
 
                     ei = ExpectedImprovement(model=model, best_f=tau)
@@ -164,7 +162,7 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                     state_dict = model.state_dict()
 
                 # evaluate blackbox objective
-                t0 = datetime.now()
+                # t0 = datetime.now()
                 y_new = func(x_new)
                 t1 = datetime.now()
 

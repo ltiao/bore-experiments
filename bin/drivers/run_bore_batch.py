@@ -19,7 +19,6 @@ from bore_experiments.benchmarks import make_benchmark
 from bore_experiments.utils import make_name
 
 from pathlib import Path
-from functools import partial
 from datetime import datetime
 from tqdm import trange
 
@@ -111,11 +110,11 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
 
     for run_id in trange(run_start, num_runs, unit="run"):
 
-        t_start = datetime.now()
+        run_begin_t = batch_end_t_adj = batch_end_t = datetime.now()
 
         frames = []
 
-        random_state = np.random.RandomState(run_id)
+        random_state = np.random.RandomState(seed=run_id)
 
         config_space = DenseConfigurationSpace(benchmark.get_config_space(),
                                                seed=run_id)
@@ -181,6 +180,11 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                                                  bounds=bounds,
                                                  random_state=random_state)
 
+                batch_begin_t = eval_begin_t = datetime.now()
+                batch_begin_t_adj = batch_begin_t - (batch_end_t - batch_end_t_adj)
+
+                eval_end_times = []
+
                 # TODO(LT): Deliberately not doing broadcasting for now since
                 # batch sizes are so small anyway. Can revisit later if there
                 # is a compelling reason to do it.
@@ -192,8 +196,19 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                     # evaluate
                     y_next = benchmark.evaluate(config).value
 
-                    t = datetime.now()
-                    delta = t - t_start
+                    # eval end time
+                    eval_end_t = datetime.now()
+                    # eval duration
+                    duration = eval_end_t - eval_begin_t
+                    # adjusted eval end time is the duration added to the
+                    # time at which batch eval was started
+                    eval_end_t_adj = batch_begin_t_adj + duration
+                    # start time for next evaluation is the end time for the
+                    # previous evaluation
+                    eval_begin_t = eval_end_t
+
+                    eval_end_times.append(eval_end_t_adj)
+                    elapsed = eval_end_t_adj - run_begin_t
 
                     # update dataset
                     record.append(x=x_next, y=y_next)
@@ -201,10 +216,13 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                     row = dict(config)
                     row["batch"] = batch
                     row["loss"] = y_next
-                    row["finished"] = delta.total_seconds()
+                    row["finished"] = elapsed.total_seconds()
                     rows.append(row)
 
-                frame = pd.DataFrame(data=rows)  # .assign(batch=batch)
+                batch_end_t = datetime.now()
+                batch_end_t_adj = max(eval_end_times)
+
+                frame = pd.DataFrame(data=rows)
                 frames.append(frame)
 
         data = pd.concat(frames, axis="index", ignore_index=True, sort=True)
