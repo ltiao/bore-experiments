@@ -65,8 +65,10 @@ def is_unique(record):
 @click.option("--max-iter", default=1000)
 @click.option("--step-size", default=1e-3)
 @click.option("--length-scale")
+@click.option("--tau", default=1.0)
+@click.option("--lambd", type=float)
 @click.option("--ftol", default=1e-9)
-@click.option("--input-dir", default="datasets/fcnet_tabular_benchmarks",
+@click.option("--input-dir", default="datasets/fcnet_tabular_benchmarks/",
               type=click.Path(file_okay=False, dir_okay=True),
               help="Input data directory.")
 @click.option("--output-dir", default="results/",
@@ -77,7 +79,7 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
          num_random_init, batch_size, random_rate, num_starts, num_samples,
          batch_size_training, num_steps_per_iter, num_epochs, optimizer,
          num_layers, num_units, activation, transform, method, max_iter,
-         step_size, length_scale, ftol, input_dir, output_dir):
+         step_size, length_scale, tau, lambd, ftol, input_dir, output_dir):
 
     benchmark = make_benchmark(benchmark_name,
                                dimensions=dimensions,
@@ -99,7 +101,7 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                    num_epochs=num_epochs, optimizer=optimizer,
                    num_layers=num_layers, num_units=num_units,
                    activation=activation, transform=transform, method=method,
-                   max_iter=max_iter, step_size=step_size,
+                   max_iter=max_iter, step_size=step_size, tau=tau, lambd=lambd,
                    length_scale=length_scale, ftol=ftol)
     with output_path.joinpath("options.yaml").open('w') as f:
         yaml.dump(options, f)
@@ -178,6 +180,7 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                                                  length_scale=length_scale,
                                                  step_size=step_size,
                                                  bounds=bounds,
+                                                 tau=tau, lambd=lambd,
                                                  random_state=random_state)
 
                 batch_begin_t = eval_begin_t = datetime.now()
