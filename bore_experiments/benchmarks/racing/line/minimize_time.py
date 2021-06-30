@@ -258,7 +258,7 @@ def optimize(path, params, plot_results, print_updates):
         cost += 2*dtheta*cv.inv_pos(cv.power(B[j], 0.5) + cv.power(B[j+1], 0.5))
 
         R, M, C, d = dynamics_cvx(S_prime[:, j], S_dprime[:, j], params)
-        constr += [R*U[:, j] == M*A[j] + C*((B[j] + B[j+1])/2) + d]
+        constr += [R @ U[:, j] == M * A[j] + C * ((B[j] + B[j+1])/2) + d]
         constr += [B[j] >= 0]
         constr += [cv.norm(U[:, j], 2) <= params['Fmax']]
         constr += [U[0, j] <= params['Flongmax']]

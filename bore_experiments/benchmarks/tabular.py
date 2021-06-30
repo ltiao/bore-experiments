@@ -22,7 +22,8 @@ def _get_benchmark(dataset_name, data_dir):
 
 class FCNet(Benchmark):
 
-    def __init__(self, dataset_name, data_dir):
+    def __init__(self, dataset_name, input_dir):
+        data_dir = Path(input_dir).joinpath("fcnet_tabular_benchmarks")
         benchmark = _get_benchmark(dataset_name, data_dir)
         if benchmark is None:
             raise ValueError("dataset name not recognized!")
@@ -41,23 +42,23 @@ class FCNet(Benchmark):
 
     def get_minimum(self):
 
-        base_path = Path(self.data_dir).joinpath(self.dataset_name)
+        base_path = self.data_dir.joinpath(self.dataset_name)
+        base_path.mkdir(parents=True, exist_ok=True)
+
         path = base_path.joinpath("minimum.yaml")
 
         if path.exists():
             with path.open('r') as f:
                 val_error_min = yaml.safe_load(f).get("val_error_min")
         else:
-
             config_dict, val_error_min, \
                 test_error_min = self.benchmark.get_best_configuration()
-
             d = dict(config_dict=config_dict,
                      val_error_min=float(val_error_min),
                      test_error_min=float(test_error_min))
-
             with path.open('w') as f:
                 yaml.dump(d, f)
+
         return float(val_error_min)
 
 

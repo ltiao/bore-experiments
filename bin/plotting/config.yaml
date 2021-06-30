@@ -1,4 +1,4 @@
-names:
+methods:
   random: Random
   tpe: TPE
   bohb: TPE (\texttt{HpBandSter})
@@ -6,6 +6,25 @@ names:
   bore-elu-25: BORE
   gp-botorch: BO-GP (EI)
   smac: SMAC
+  bore: QS-BORE
+  bore-logit: QS-BORE (logit-space)
+  gpyopt: BO-GP LP-EI 
+  botorch: BO-GP $q$-EI (MC)
   bore-batch: QS-BORE
-  gp-botorch-batch: GP (MC $q$-EI)
-  gp-botorch-std-batch: GP (standardized; MC $q$-EI)
+  bore-logit-batch: QS-BORE (logit-space)
+  gpyopt-batch: BO-GP LP-EI 
+  botorch-batch: BO-GP $q$-EI (MC)
+  botorch-std-batch: GP (standardized; MC $q$-EI)
+benchmarks:
+  branin: Branin-Hoo
+  goldstein_price: Goldstein-Price
+  six_hump_camel: Six-hump Camel
+  hartmann3d: Hartmann3D
+  hartmann6d: Hartmann6D
+  fcnet_parkinsons: \textsc{parkinsons}
+  fcnet_protein: \textsc{protein}
+  fcnet_naval: \textsc{naval}
+  fcnet_slice: \textsc{slice}
+  ucb_f110_racing: \textsc{uc berkeley}
+  ethz_orca_racing: \textsc{eth zurich} 1
+  ethz_mobil_orca_racing: \textsc{eth zurich} 2
