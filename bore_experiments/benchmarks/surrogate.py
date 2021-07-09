@@ -28,7 +28,7 @@ class BOHBSurrogate(Benchmark):
 
         epoch = int(budget)
 
-        arr = np.array([
+        x = np.array([
             10 ** kwargs['initial_lr_log10'],
             round(2 ** kwargs['batch_size_log2']),
             round(2 ** kwargs['average_units_per_layer_log2']),
@@ -39,12 +39,12 @@ class BOHBSurrogate(Benchmark):
             kwargs['dropout_1']
         ])
 
-        X = np.atleast_2d(arr)
+        X = np.atleast_2d(x)
 
-        lc = self.surrogate_objective.predict(X)[0]
+        lc = self.surrogate_objective.predict(X).squeeze(axis=0)
         total_epochs = len(lc)
 
-        c = self.surrogate_costs.predict(X)[0]
+        c = self.surrogate_costs.predict(X).squeeze(axis=0)
         time_per_epoch = c / total_epochs
 
         value = lc[epoch-1]
@@ -55,16 +55,17 @@ class BOHBSurrogate(Benchmark):
     def get_config_space(self):
         cs = CS.ConfigurationSpace()
         cs.add_hyperparameters([
-            CS.UniformFloatHyperparameter('initial_lr_log10', lower=-6, upper=-2, default_value=-4, log=False),
-            CS.UniformFloatHyperparameter('batch_size_log2', lower=3, upper=8, default_value=5.5, log=False),
-            CS.UniformFloatHyperparameter('average_units_per_layer_log2', lower=4, upper=8, default_value=6, log=False),
-            CS.UniformFloatHyperparameter('final_lr_fraction_log2', lower=-4, upper=0, default_value=-2, log=False),
-            CS.UniformFloatHyperparameter('shape_parameter_1', lower=0., upper=1., default_value=0.5, log=False),
-            CS.UniformIntegerHyperparameter('num_layers', lower=1, upper=5, default_value=3, log=False),
-            CS.UniformFloatHyperparameter('dropout_0', lower=0., upper=0.5, default_value=0.25, log=False),
-            CS.UniformFloatHyperparameter('dropout_1', lower=0., upper=0.5, default_value=0.25, log=False),
+            CS.UniformFloatHyperparameter('initial_lr_log10', lower=-6, upper=-2),
+            CS.UniformFloatHyperparameter('batch_size_log2', lower=3, upper=8),
+            CS.UniformFloatHyperparameter('average_units_per_layer_log2', lower=4, upper=8),
+            CS.UniformFloatHyperparameter('final_lr_fraction_log2', lower=-4, upper=0),
+            CS.UniformFloatHyperparameter('shape_parameter_1', lower=0., upper=1.),
+            CS.UniformIntegerHyperparameter('num_layers', lower=1, upper=5),
+            CS.UniformFloatHyperparameter('dropout_0', lower=0., upper=0.5),
+            CS.UniformFloatHyperparameter('dropout_1', lower=0., upper=0.5),
         ])
         return cs
 
     def get_minimum(self):
-        raise NotImplementedError
+        return 0.
+        # raise NotImplementedError

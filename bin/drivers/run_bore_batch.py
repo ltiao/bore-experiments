@@ -29,8 +29,15 @@ def get_steps_per_epoch(batch_size, dataset_size):
 
 def is_unique(record):
 
-    def func(res):
-        return not record.is_duplicate(res.x)
+    def func(X):
+        B = np.expand_dims(X, axis=1)
+        diff = B - record.load_feature_matrix()
+        sqr_diff = np.square(diff)
+        sum_sqr_diff = np.sum(sqr_diff, axis=-1)
+        ind = np.less(sum_sqr_diff, 1e-6).any(axis=1)
+        print(X[ind])
+        # return not record.is_duplicate(x)
+        return True
 
     return func
 
@@ -68,7 +75,7 @@ def is_unique(record):
 @click.option("--tau", default=1.0)
 @click.option("--lambd", type=float)
 @click.option("--ftol", default=1e-9)
-@click.option("--input-dir", default="datasets/fcnet_tabular_benchmarks/",
+@click.option("--input-dir", default="datasets/",
               type=click.Path(file_okay=False, dir_okay=True),
               help="Input data directory.")
 @click.option("--output-dir", default="results/",
@@ -84,7 +91,7 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
     benchmark = make_benchmark(benchmark_name,
                                dimensions=dimensions,
                                dataset_name=dataset_name,
-                               data_dir=input_dir)
+                               input_dir=input_dir)
     name = make_name(benchmark_name,
                      dimensions=dimensions,
                      dataset_name=dataset_name)
@@ -181,6 +188,8 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                                                  step_size=step_size,
                                                  bounds=bounds,
                                                  tau=tau, lambd=lambd,
+                                                 # print_fn=click.echo,
+                                                 foo=record.load_feature_matrix(),
                                                  random_state=random_state)
 
                 batch_begin_t = eval_begin_t = datetime.now()

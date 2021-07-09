@@ -4,7 +4,7 @@ methods:
   bohb: TPE (\texttt{HpBandSter})
   bore: BORE
   bore-elu-25: BORE
-  gp-botorch: BO-GP (EI)
+  gp-botorch: BO-GP $q$-EI (MC)
   smac: SMAC
   bore: QS-BORE
   bore-logit: QS-BORE (logit-space)
@@ -14,6 +14,7 @@ methods:
   bore-logit-batch: QS-BORE (logit-space)
   gpyopt-batch: BO-GP LP-EI 
   botorch-batch: BO-GP $q$-EI (MC)
+  botorch-kg: BO-GP $q$-KG (MC; one-shot)
   botorch-std-batch: GP (standardized; MC $q$-EI)
 benchmarks:
   branin: Branin-Hoo
@@ -28,3 +29,17 @@ benchmarks:
   ucb_f110_racing: \textsc{uc berkeley}
   ethz_orca_racing: \textsc{eth zurich} 1
   ethz_mobil_orca_racing: \textsc{eth zurich} 2
+  bohb_surrogate_adult: \textsc{adult}
+  bohb_surrogate_higgs: \textsc{higgs}
+  bohb_surrogate_letter: \textsc{letter}
+  bohb_surrogate_mnist: \textsc{mnist}
+  bohb_surrogate_optdigits: \textsc{optdigits}
+  bohb_surrogate_poker: \textsc{poker}
+  michalewicz_002d: \textsc{michalewicz} $D=2$
+  michalewicz_005d: \textsc{michalewicz} $D=5$
+  michalewicz_010d: \textsc{michalewicz} $D=10$
+  rosenbrock_002d: \textsc{rosenbrock} $D=2$
+  rosenbrock_005d: \textsc{rosenbrock} $D=5$
+  rosenbrock_010d: \textsc{rosenbrock} $D=10$
+  michalewicz: \textsc{michalewicz}
+  rosenbrock: \textsc{rosenbrock}

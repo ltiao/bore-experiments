@@ -37,22 +37,31 @@ def get_ci(ci):
     return ci
 
 
-def get_loss_min(benchmark_name, data_dir=None):
+def parse_benchmark_name(benchmark_name, input_dir=None):
 
     kws = dict()
-    if benchmark_name.startswith("fcnet"):
-        benchmark_name, dataset_name = benchmark_name.split('_')
-        kws = dict(dataset_name=dataset_name, data_dir=data_dir)
+    if benchmark_name.startswith("fcnet") or \
+            benchmark_name.startswith("bohb_surrogate"):
+        *head, dataset_name = benchmark_name.split('_')
+        name = '_'.join(head)
+        kws = dict(dataset_name=dataset_name, input_dir=input_dir)
     elif any(map(benchmark_name.startswith, ("styblinski_tang",
                                              "michalewicz",
                                              "rosenbrock",
                                              "ackley"))):
         *head, dimensions_str = benchmark_name.split('_')
-        benchmark_name = '_'.join(head)
+        name = '_'.join(head)
         dimensions = int(dimensions_str[:-1])
         kws = dict(dimensions=dimensions)
+    else:
+        name = benchmark_name
 
-    benchmark = make_benchmark(benchmark_name, **kws)
+    return name, kws
+
+
+def get_loss_min(name, kws):
+
+    benchmark = make_benchmark(name, **kws)
     loss_min = benchmark.get_minimum()
 
     return loss_min

@@ -23,7 +23,7 @@ from bore_experiments.utils import make_name, BenchmarkWorker, HpBandSterLogs
 @click.option("--eta", default=3, help="Successive halving reduction factor.")
 @click.option("--min-budget", default=100)
 @click.option("--max-budget", default=100)
-@click.option("--input-dir", default="datasets/fcnet_tabular_benchmarks",
+@click.option("--input-dir", default="datasets/",
               type=click.Path(file_okay=False, dir_okay=True),
               help="Input data directory.")
 @click.option("--output-dir", default="results/",
@@ -35,7 +35,7 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
     benchmark = make_benchmark(benchmark_name,
                                dimensions=dimensions,
                                dataset_name=dataset_name,
-                               data_dir=input_dir)
+                               input_dir=input_dir)
     name = make_name(benchmark_name,
                      dimensions=dimensions,
                      dataset_name=dataset_name)
