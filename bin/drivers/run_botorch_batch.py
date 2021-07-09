@@ -9,6 +9,7 @@ from botorch.models import FixedNoiseGP
 from gpytorch.mlls import ExactMarginalLogLikelihood
 from botorch.fit import fit_gpytorch_model
 from botorch.acquisition.monte_carlo import qExpectedImprovement
+from botorch.acquisition.knowledge_gradient import qKnowledgeGradient
 from botorch.sampling.samplers import SobolQMCNormalSampler
 from botorch.optim import optimize_acqf
 from botorch.utils import standardize
@@ -40,13 +41,15 @@ def create_bounds(bounds, device=None, dtype=None):
 @click.option("--num-runs", "-n", default=20)
 @click.option("--run-start", default=0)
 @click.option("--num-iterations", "-i", default=500)
-# @click.option("--acquisition-name", default="EI")
+@click.option("--acquisition-name", default="q-EI",
+              type=click.Choice(["q-EI", "q-KG"], case_sensitive=False))
 # @click.option("--acquisition-optimizer-name", default="lbfgs",
 #               type=click.Choice(["lbfgs", "DIRECT", "CMA"]))
 @click.option("--gamma", default=0., type=click.FloatRange(0., 1.),
               help="Quantile, or mixing proportion.")
 @click.option("--num-random-init", default=10)
 @click.option("--batch-size", default=4)
+@click.option("--num-fantasies", default=128)
 @click.option("--mc-samples", default=256)
 @click.option("--num-restarts", default=10)
 @click.option("--raw-samples", default=512)
@@ -54,7 +57,7 @@ def create_bounds(bounds, device=None, dtype=None):
 # @click.option('--use-ard', is_flag=True)
 # @click.option('--use-input-warping', is_flag=True)
 @click.option('--standardize-targets/--no-standardize-targets', default=True)
-@click.option("--input-dir", default="datasets/fcnet_tabular_benchmarks",
+@click.option("--input-dir", default="datasets/",
               type=click.Path(file_okay=False, dir_okay=True),
               help="Input data directory.")
 @click.option("--output-dir", default="results/",
@@ -62,9 +65,9 @@ def create_bounds(bounds, device=None, dtype=None):
               help="Output directory.")
 def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
          run_start, num_iterations,
-         # acquisition_name,
+         acquisition_name,
          # acquisition_optimizer_name,
-         gamma, num_random_init, mc_samples, batch_size,
+         gamma, num_random_init, mc_samples, batch_size, num_fantasies,
          num_restarts, raw_samples, noise_variance_init,
          # use_ard,
          # use_input_warping,
@@ -79,7 +82,7 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
     benchmark = make_benchmark(benchmark_name,
                                dimensions=dimensions,
                                dataset_name=dataset_name,
-                               data_dir=input_dir)
+                               input_dir=input_dir)
     name = make_name(benchmark_name,
                      dimensions=dimensions,
                      dataset_name=dataset_name)
@@ -88,8 +91,10 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
     output_path.mkdir(parents=True, exist_ok=True)
 
     options = dict(gamma=gamma, num_random_init=num_random_init,
+                   acquisition_name=acquisition_name,
                    mc_samples=mc_samples, batch_size=batch_size,
                    num_restarts=num_restarts, raw_samples=raw_samples,
+                   num_fantasies=num_fantasies,
                    noise_variance_init=noise_variance_init,
                    standardize_targets=standardize_targets)
     with output_path.joinpath("options.yaml").open('w') as f:
@@ -153,12 +158,17 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                     tau = torch.quantile(y, q=1-gamma)
                     iterations.set_postfix(tau=tau.item())
 
-                    qmc_sampler = SobolQMCNormalSampler(num_samples=mc_samples)
-                    ei = qExpectedImprovement(model=model, best_f=tau,
-                                              sampler=qmc_sampler)
+                    if acquisition_name == "q-KG":
+                        assert num_fantasies is not None and num_fantasies > 0
+                        acq = qKnowledgeGradient(model, num_fantasies=num_fantasies)
+                    elif acquisition_name == "q-EI":
+                        assert mc_samples is not None and mc_samples > 0
+                        qmc_sampler = SobolQMCNormalSampler(num_samples=mc_samples)
+                        acq = qExpectedImprovement(model=model, best_f=tau,
+                                                   sampler=qmc_sampler)
 
                     # optimize acquisition function
-                    X_batch, b = optimize_acqf(acq_function=ei, bounds=bounds,
+                    X_batch, b = optimize_acqf(acq_function=acq, bounds=bounds,
                                                q=batch_size,
                                                num_restarts=num_restarts,
                                                raw_samples=raw_samples,

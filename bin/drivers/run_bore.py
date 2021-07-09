@@ -41,12 +41,12 @@ logging.basicConfig(level=logging.DEBUG)
 @click.option("--num-layers", default=2)
 @click.option("--num-units", default=32)
 @click.option("--activation", default="elu")
+@click.option("--l2-factor", default=None, type=float)
 @click.option('--transform', default="sigmoid")
 @click.option("--method", default="L-BFGS-B")
 @click.option("--max-iter", default=1000)
 @click.option("--ftol", default=1e-9)
 @click.option("--distortion", default=None, type=float)
-@click.option('--restart/--no-restart', default=True)
 @click.option("--input-dir", default="datasets/",
               type=click.Path(file_okay=False, dir_okay=True),
               help="Input data directory.")
@@ -57,8 +57,8 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
          run_start, num_iterations, eta, min_budget, max_budget, gamma,
          num_random_init, random_rate, retrain, num_starts, num_samples,
          batch_size, num_steps_per_iter, num_epochs, optimizer,
-         num_layers, num_units, activation, transform, method, max_iter, ftol,
-         distortion, restart, input_dir, output_dir):
+         num_layers, num_units, activation, l2_factor, transform, method,
+         max_iter, ftol, distortion, input_dir, output_dir):
 
     benchmark = make_benchmark(benchmark_name,
                                dimensions=dimensions,
@@ -78,9 +78,10 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                    batch_size=batch_size, num_steps_per_iter=num_steps_per_iter,
                    num_epochs=num_epochs, optimizer=optimizer,
                    num_layers=num_layers, num_units=num_units,
-                   activation=activation, transform=transform, method=method,
-                   max_iter=max_iter, ftol=ftol, distortion=distortion,
-                   restart=restart)
+                   activation=activation, l2_factor=l2_factor,
+                   transform=transform,
+                   method=method, max_iter=max_iter, ftol=ftol,
+                   distortion=distortion)
     with output_path.joinpath("options.yaml").open('w') as f:
         yaml.dump(options, f)
 

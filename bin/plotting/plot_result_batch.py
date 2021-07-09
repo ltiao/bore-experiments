@@ -11,7 +11,8 @@ from pathlib import Path
 from bore_experiments.plotting.utils import (GOLDEN_RATIO, WIDTH, pt_to_in,
                                              load_frame, extract_series,
                                              merge_stack_series, get_loss_min,
-                                             sanitize, get_ci)
+                                             parse_benchmark_name, sanitize,
+                                             get_ci)
 
 
 @click.command()
@@ -67,15 +68,15 @@ def main(name, input_dir, output_dir, benchmarks, num_runs, methods, ci,
     methods_mapping = config.get("methods", {})
     benchmarks_mapping = config.get("benchmarks", {})
 
-    if legend:
-        legend = "auto"
+    legend = "auto" if legend else False
 
     frames = []
     frames_merged = []
 
     for benchmark in benchmarks:
 
-        # loss_min = get_loss_min(benchmark, data_dir="datasets/fcnet_tabular_benchmarks")
+        benchmark_name, benchmark_options = parse_benchmark_name(benchmark, input_dir="datasets/")
+        loss_min = get_loss_min(benchmark_name, benchmark_options)
 
         for method in methods:
 
@@ -95,15 +96,15 @@ def main(name, input_dir, output_dir, benchmarks, num_runs, methods, ci,
                                 fg="yellow")
                     continue
 
-                frame = load_frame(path, run,  # loss_min=loss_min,
+                frame = load_frame(path, run, loss_min=loss_min,
                                    duration_key=duration_key) \
                     .groupby(by="batch").min().reset_index()
 
-                frames.append(frame.assign(benchmark=benchmark, method=method_name, **options))
-                series[run] = extract_series(frame, index="elapsed", column="best")
+                frames.append(frame.assign(benchmark=benchmark_name, method=method_name, **options, **benchmark_options))
+                series[run] = extract_series(frame, index="elapsed", column="regret")
 
-            frame_merged = merge_stack_series(series, y_key="best")
-            frames_merged.append(frame_merged.assign(benchmark=benchmark, method=method_name, **options))
+            frame_merged = merge_stack_series(series, y_key="regret")
+            frames_merged.append(frame_merged.assign(benchmark=benchmark_name, method=method_name, **options, **benchmark_options))
 
     data = pd.concat(frames, axis="index", ignore_index=True, sort=False)
     data = sanitize(data, methods_mapping=methods_mapping,
@@ -136,19 +137,19 @@ def main(name, input_dir, output_dir, benchmarks, num_runs, methods, ci,
 
     # # return 0
 
-    g = sns.relplot(x="batch", y="best",
-                    col="benchmark",
-                    row="batch size",  # hue_order=hue_order,
+    g = sns.relplot(x="batch", y="regret",
+                    row="benchmark",
+                    col="dimensions",  # hue_order=hue_order,
                     hue="method",  # style_order=style_order,
                     # units="run", estimator=None, linewidth=0.25,
                     # style="method", markers=True, dashes=False,
                     ci=get_ci(ci), err_style="band",  # err_kws=dict(edgecolor='none'),
-                    facet_kws=dict(sharey="col"),
+                    facet_kws=dict(sharey=False),
                     height=height, aspect=aspect, kind="line",
                     alpha=0.6, legend=legend, data=data)
     g = g.set(yscale="log")
-    g = g.set_axis_labels("batch", "best")  # "best lap time [s]")
-    g = g.set_titles(r"{col_name} -- $B={row_name}$")
+    g = g.set_axis_labels("batch", "regret")  # "best lap time [s]")
+    g = g.set_titles(r"{row_name} ($D={col_name}$)")
 
     for ext in extension:
         g.savefig(output_path.joinpath(f"grid_{context}_{suffix}.{ext}"),
