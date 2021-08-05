@@ -27,8 +27,8 @@ benchmarks:
   fcnet_naval: \textsc{naval}
   fcnet_slice: \textsc{slice}
   ucb_f110_racing: \textsc{uc berkeley}
-  ethz_orca_racing: \textsc{eth zurich} 1
-  ethz_mobil_orca_racing: \textsc{eth zurich} 2
+  ethz_orca_racing: \textsc{eth z{\"u}rich i}
+  ethz_mobil_orca_racing: \textsc{eth z{\"u}rich ii}
   bohb_surrogate_adult: \textsc{adult}
   bohb_surrogate_higgs: \textsc{higgs}
   bohb_surrogate_letter: \textsc{letter}
@@ -43,3 +43,10 @@ benchmarks:
   rosenbrock_010d: \textsc{rosenbrock} $D=10$
   michalewicz: \textsc{michalewicz}
   rosenbrock: \textsc{rosenbrock}
+datasets:
+  adult: \textsc{adult}
+  higgs: \textsc{higgs}
+  letter: \textsc{letter}
+  mnist: \textsc{mnist}
+  optdigits: \textsc{optdigits}
+  poker: \textsc{poker}

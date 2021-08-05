@@ -18,10 +18,11 @@ def size(width, aspect=GOLDEN_RATIO):
     return (width_in, width_in / aspect)
 
 
-def sanitize(data, methods_mapping, benchmarks_mapping):
+def sanitize(data, methods_mapping, benchmarks_mapping, datasets_mapping):
 
     return data.replace(dict(method=methods_mapping,
-                             benchmark=benchmarks_mapping)) \
+                             benchmark=benchmarks_mapping,
+                             dataset_name=datasets_mapping)) \
                .rename(lambda s: s.replace('_', ' '), axis="columns")
 
 

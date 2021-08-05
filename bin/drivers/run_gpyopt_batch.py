@@ -2,20 +2,16 @@ import sys
 import click
 import yaml
 
-import numpy as np
 import pandas as pd
 import ConfigSpace as CS
 
 import GPyOpt
 from pathlib import Path
 
+from bore.math import ceil_divide
 from bore_experiments.benchmarks import make_benchmark
 from bore_experiments.utils import make_name
 from tqdm import trange
-
-
-def ceil_divide(a, b, *args, **kwargs):
-    return - np.floor_divide(-a, b, *args, **kwargs)
 
 
 def dict_from_array(array, cs):
