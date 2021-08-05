@@ -18,7 +18,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 from tensorflow.keras.losses import BinaryCrossentropy
-from bore.models import DenseMaximizableSequential
+from bore.models import MaximizableDenseSequential
 from bore_experiments.datasets import make_classification_dataset
 from bore_experiments.plotting.utils import GOLDEN_RATIO, WIDTH, pt_to_in
 
@@ -84,7 +84,7 @@ class MLPDensityRatioEstimator(DensityRatioBase):
     def __init__(self, num_layers=2, num_units=32, activation="tanh",
                  seed=None, *args, **kwargs):
 
-        self.model = DenseMaximizableSequential(1, num_layers, num_units,
+        self.model = MaximizableDenseSequential(1, num_layers, num_units,
                                                 layer_kws=dict(activation=activation))
 
     def logit(self, X, y=None):
@@ -164,13 +164,13 @@ def main(name, gamma, estimation, output_dir, transparent, context, style,
     X_grid = np.linspace(x_min, x_max, num_index_points) \
                .reshape(-1, num_features)
 
-    # p = tfd.MixtureSameFamily(
-    #     mixture_distribution=tfd.Categorical(probs=[0.3, 0.7]),
-    #     components_distribution=tfd.Normal(loc=[2.0, -3.0], scale=[1.0, 0.5]))
-    # q = tfd.Normal(loc=0.0, scale=2.0)
+    p = tfd.MixtureSameFamily(
+        mixture_distribution=tfd.Categorical(probs=[0.3, 0.7]),
+        components_distribution=tfd.Normal(loc=[2.0, -3.0], scale=[1.0, 0.5]))
+    q = tfd.Normal(loc=0.0, scale=2.0)
 
-    p = tfd.Normal(loc=0.0, scale=1.0)
-    q = tfd.Normal(loc=0.5, scale=1.0)
+    # p = tfd.Normal(loc=0.0, scale=1.0)
+    # q = tfd.Normal(loc=0.5, scale=1.0)
 
     # p = tfd.Normal(loc=1.0, scale=1.0)
     # q = tfd.Normal(loc=0.0, scale=2.0)
@@ -186,47 +186,47 @@ def main(name, gamma, estimation, output_dir, transparent, context, style,
     kde_greater = sm.nonparametric.KDEUnivariate(X_q)
     kde_greater.fit(bw="normal_reference")
 
-    # fig, (ax1, ax2) = plt.subplots(nrows=2, sharex="col")
+    fig, (ax1, ax2) = plt.subplots(nrows=2, sharex="col")
 
-    fig, ax1 = plt.subplots()
+    # fig, ax1 = plt.subplots()
 
     l, = ax1.plot(X_grid.squeeze(axis=-1),
                   r.top.prob(X_grid).numpy().squeeze(axis=-1), label=r"$\ell(x)$")
     g, = ax1.plot(X_grid.squeeze(axis=-1),
                   r.bot.prob(X_grid).numpy().squeeze(axis=-1), label=r"$g(x)$")
 
-    ax1.annotate(r"$\mathcal{N}(0, 1)$",
-                 xy=(-4.3, 0.22),
-                 xycoords='data', xytext=(1, 1),
-                 color=l.get_color(),
-                 textcoords='offset points', fontsize="small",
-                 # arrowprops=dict(facecolor='black', shrink=0.05),
-                 # bbox=dict(boxstyle="round", fc="none"),
-                 horizontalalignment='left', verticalalignment='top')
+    # ax1.annotate(r"$\mathcal{N}(0, 1)$",
+    #              xy=(-4.3, 0.22),
+    #              xycoords='data', xytext=(1, 1),
+    #              color=l.get_color(),
+    #              textcoords='offset points', fontsize="small",
+    #              # arrowprops=dict(facecolor='black', shrink=0.05),
+    #              # bbox=dict(boxstyle="round", fc="none"),
+    #              horizontalalignment='left', verticalalignment='top')
 
-    ax1.annotate(r"$\mathcal{N}(0.5, 1)$",
-                 xy=(1.4, 0.35),
-                 xycoords='data', xytext=(1, 1),
-                 color=g.get_color(),
-                 textcoords='offset points', fontsize="small",
-                 # arrowprops=dict(facecolor='black', shrink=0.05),
-                 # bbox=dict(boxstyle="round", fc="none"),
-                 horizontalalignment='left', verticalalignment='top')
+    # ax1.annotate(r"$\mathcal{N}(0.5, 1)$",
+    #              xy=(1.4, 0.35),
+    #              xycoords='data', xytext=(1, 1),
+    #              color=g.get_color(),
+    #              textcoords='offset points', fontsize="small",
+    #              # arrowprops=dict(facecolor='black', shrink=0.05),
+    #              # bbox=dict(boxstyle="round", fc="none"),
+    #              horizontalalignment='left', verticalalignment='top')
 
     ax1.set_xlabel(r'$x$')
     ax1.set_ylabel('density')
 
     ax1.legend()
 
-    plt.tight_layout()
+    # plt.tight_layout()
 
-    for ext in extension:
-        fig.savefig(output_path.joinpath(f"densities_{context}_{suffix}.{ext}"),
-                    dpi=dpi, transparent=transparent)
+    # for ext in extension:
+    #     fig.savefig(output_path.joinpath(f"densities_{context}_{suffix}.{ext}"),
+    #                 dpi=dpi, transparent=transparent)
 
-    plt.show()
+    # plt.show()
 
-    fig, ax2 = plt.subplots()
+    # fig, ax2 = plt.subplots()
 
     foo, = ax2.plot(X_grid.squeeze(axis=-1),
                     r.ratio(X_grid).numpy().squeeze(axis=-1), label=r"$r_0(x)$",
@@ -236,23 +236,23 @@ def main(name, gamma, estimation, output_dir, transparent, context, style,
                     .numpy().squeeze(axis=-1), label=fr"$r_{{{gamma:.2f}}}(x)$",
                     color="tab:green")
 
-    ax2.annotate(r"$\gamma=0$",
-                 xy=(-4.3, r.ratio([-4.3]).numpy().squeeze(axis=-1)),
-                 xycoords='data', xytext=(4, 2),
-                 color=foo.get_color(),
-                 textcoords='offset points', fontsize="small",
-                 # arrowprops=dict(facecolor='black', shrink=0.05),
-                 # bbox=dict(boxstyle="round", fc="none"),
-                 horizontalalignment='left', verticalalignment='top')
+    # ax2.annotate(r"$\gamma=0$",
+    #              xy=(-4.3, r.ratio([-4.3]).numpy().squeeze(axis=-1)),
+    #              xycoords='data', xytext=(4, 2),
+    #              color=foo.get_color(),
+    #              textcoords='offset points', fontsize="small",
+    #              # arrowprops=dict(facecolor='black', shrink=0.05),
+    #              # bbox=dict(boxstyle="round", fc="none"),
+    #              horizontalalignment='left', verticalalignment='top')
 
-    ax2.annotate(r"$\gamma=\frac{1}{4}$",
-                 xy=(-4.8, 1.5),
-                 xycoords='data', xytext=(1, 1),
-                 color=bar.get_color(),
-                 textcoords='offset points', fontsize="small",
-                 # arrowprops=dict(facecolor='black', shrink=0.05),
-                 # bbox=dict(boxstyle="round", fc="none"),
-                 horizontalalignment='left', verticalalignment='top')
+    # ax2.annotate(r"$\gamma=\frac{1}{4}$",
+    #              xy=(-4.8, 1.5),
+    #              xycoords='data', xytext=(1, 1),
+    #              color=bar.get_color(),
+    #              textcoords='offset points', fontsize="small",
+    #              # arrowprops=dict(facecolor='black', shrink=0.05),
+    #              # bbox=dict(boxstyle="round", fc="none"),
+    #              horizontalalignment='left', verticalalignment='top')
 
     # ax2.set_ylim(-0.1, 5.0)
 

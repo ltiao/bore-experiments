@@ -30,6 +30,7 @@ from bore_experiments.plotting.utils import (GOLDEN_RATIO, WIDTH, pt_to_in,
 @click.option('--ymin', type=float)
 @click.option('--ymax', type=float)
 @click.option('--ylabel', default="simple regret")
+@click.option('--use-tex/--no-use-tex', default=True)
 @click.option('--transparent', is_flag=True)
 @click.option('--context', default="paper")
 @click.option('--style', default="ticks")
@@ -41,8 +42,9 @@ from bore_experiments.plotting.utils import (GOLDEN_RATIO, WIDTH, pt_to_in,
 @click.option('--extension', '-e', multiple=True, default=["png"])
 @click.option("--config-file", type=click.File('r'))
 def main(name, input_dir, output_dir, benchmarks, num_runs, methods, ci,
-         duration_key, legend, ymin, ymax, ylabel, transparent, context, style,
-         palette, width, height, aspect, dpi, extension, config_file):
+         duration_key, legend, ymin, ymax, ylabel, use_tex, transparent,
+         context, style, palette, width, height, aspect, dpi, extension,
+         config_file):
 
     if height is None:
         height = width / aspect
@@ -56,7 +58,8 @@ def main(name, input_dir, output_dir, benchmarks, num_runs, methods, ci,
     rc = {
         "figure.figsize": figsize,
         "font.serif": ["Times New Roman"],
-        "text.usetex": True,
+        "text.usetex": use_tex,
+        # "text.usetex": False,
     }
     sns.set(context=context, style=style, palette=palette, font="serif", rc=rc)
 
@@ -67,6 +70,7 @@ def main(name, input_dir, output_dir, benchmarks, num_runs, methods, ci,
     config = yaml.safe_load(config_file) if config_file else {}
     methods_mapping = config.get("methods", {})
     benchmarks_mapping = config.get("benchmarks", {})
+    datasets_mapping = config.get("datasets", {})
 
     legend = "auto" if legend else False
 
@@ -76,6 +80,7 @@ def main(name, input_dir, output_dir, benchmarks, num_runs, methods, ci,
     for benchmark in benchmarks:
 
         benchmark_name, benchmark_options = parse_benchmark_name(benchmark, input_dir="datasets/")
+        print("BENCHMARK NAME!!!", benchmark_name)
         loss_min = get_loss_min(benchmark_name, benchmark_options)
 
         for method in methods:
@@ -107,8 +112,10 @@ def main(name, input_dir, output_dir, benchmarks, num_runs, methods, ci,
             frames_merged.append(frame_merged.assign(benchmark=benchmark_name, method=method_name, **options, **benchmark_options))
 
     data = pd.concat(frames, axis="index", ignore_index=True, sort=False)
-    data = sanitize(data, methods_mapping=methods_mapping,
-                    benchmarks_mapping=benchmarks_mapping)
+    data = sanitize(data,
+                    methods_mapping=methods_mapping,
+                    benchmarks_mapping=benchmarks_mapping,
+                    datasets_mapping=datasets_mapping)
 
     # # fig, ax = plt.subplots()
     # # sns.despine(fig=fig, ax=ax, top=True)
@@ -138,8 +145,8 @@ def main(name, input_dir, output_dir, benchmarks, num_runs, methods, ci,
     # # return 0
 
     g = sns.relplot(x="batch", y="regret",
-                    row="benchmark",
-                    col="dimensions",  # hue_order=hue_order,
+                    col="benchmark", col_wrap=3,
+                    # col="dimensions",  # hue_order=hue_order,
                     hue="method",  # style_order=style_order,
                     # units="run", estimator=None, linewidth=0.25,
                     # style="method", markers=True, dashes=False,
@@ -149,7 +156,10 @@ def main(name, input_dir, output_dir, benchmarks, num_runs, methods, ci,
                     alpha=0.6, legend=legend, data=data)
     g = g.set(yscale="log")
     g = g.set_axis_labels("batch", "regret")  # "best lap time [s]")
-    g = g.set_titles(r"{row_name} ($D={col_name}$)")
+    g = g.set_titles(r"{col_name}")
+    # g = g.set_titles(r"dataset -- {col_name}")
+    # g = g.set_titles(r"{col_name} ($D={col_name}$)")
+    # g = g.set_titles(r"{row_name} ($D={col_name}$)")
 
     for ext in extension:
         g.savefig(output_path.joinpath(f"grid_{context}_{suffix}.{ext}"),

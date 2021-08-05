@@ -48,7 +48,7 @@ class RacingLine(Benchmark):
         return cs
 
     def get_minimum(self):
-        raise NotImplementedError
+        return 0.
 
 
 class UCBF110RacingLine(RacingLine):

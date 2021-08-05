@@ -7,7 +7,7 @@ import hpbandster.core.nameserver as hpns
 
 from pathlib import Path
 
-from bore.plugins.hpbandster import BORE
+from bore.plugins.hpbandster import BORE, BOREHyperband
 
 from bore_experiments.benchmarks import make_benchmark
 from bore_experiments.utils import make_name, BenchmarkWorker, HpBandSterLogs

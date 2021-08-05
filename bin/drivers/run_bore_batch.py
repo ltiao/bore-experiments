@@ -5,14 +5,16 @@ import yaml
 import numpy as np
 import pandas as pd
 
+from scipy.stats.qmc import LatinHypercube
+
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.losses import BinaryCrossentropy
 
 from bore.data import Record
+from bore.math import ceil_divide, steps_per_epoch
 from bore.models import BatchMaximizableSequential
 from bore.optimizers.svgd.base import DistortionExpDecay
 from bore.plugins.hpbandster.types import (DenseConfigurationSpace,
-                                           DenseConfiguration, array_from_dict,
                                            dict_from_array)
 
 from bore_experiments.benchmarks import make_benchmark
@@ -23,23 +25,18 @@ from datetime import datetime
 from tqdm import trange
 
 
-def get_steps_per_epoch(batch_size, dataset_size):
-    return int(np.ceil(np.true_divide(dataset_size, batch_size)))
+def create_model(input_dim, num_units, num_layers, activation, optimizer):
 
+    model = BatchMaximizableSequential()
+    model.add(Dense(num_units, input_dim=input_dim, activation=activation))
+    for i in range(num_layers-1):
+        model.add(Dense(num_units, activation=activation))
+    model.add(Dense(1))
 
-def is_unique(record):
-
-    def func(X):
-        B = np.expand_dims(X, axis=1)
-        diff = B - record.load_feature_matrix()
-        sqr_diff = np.square(diff)
-        sum_sqr_diff = np.sum(sqr_diff, axis=-1)
-        ind = np.less(sum_sqr_diff, 1e-6).any(axis=1)
-        print(X[ind])
-        # return not record.is_duplicate(x)
-        return True
-
-    return func
+    model.compile(loss=BinaryCrossentropy(from_logits=True),
+                  optimizer=optimizer)
+    model.summary(print_fn=click.echo)
+    return model
 
 
 @click.command()
@@ -56,10 +53,9 @@ def is_unique(record):
 @click.option("--gamma", default=0.25, type=click.FloatRange(0., 1.),
               help="Quantile, or mixing proportion.")
 @click.option("--num-random-init", default=10)
+@click.option("--init-method", default="uniform",
+              type=click.Choice(["uniform", "latin_hypercube"]))
 @click.option("--batch-size", default=4)
-@click.option("--random-rate", default=0.1, type=click.FloatRange(0., 1.))
-@click.option("--num-starts", default=5)
-@click.option("--num-samples", default=1024)
 @click.option("--batch-size-training", default=64)
 @click.option("--num-steps-per-iter", default=100)
 @click.option("--num-epochs", type=int)
@@ -68,13 +64,11 @@ def is_unique(record):
 @click.option("--num-units", default=32)
 @click.option("--activation", default="elu")
 @click.option('--transform', default="sigmoid")
-@click.option("--method", default="L-BFGS-B")
 @click.option("--max-iter", default=1000)
 @click.option("--step-size", default=1e-3)
 @click.option("--length-scale")
 @click.option("--tau", default=1.0)
 @click.option("--lambd", type=float)
-@click.option("--ftol", default=1e-9)
 @click.option("--input-dir", default="datasets/",
               type=click.Path(file_okay=False, dir_okay=True),
               help="Input data directory.")
@@ -83,10 +77,10 @@ def is_unique(record):
               help="Output directory.")
 def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
          run_start, num_iterations, eta, min_budget, max_budget, gamma,
-         num_random_init, batch_size, random_rate, num_starts, num_samples,
+         num_random_init, init_method, batch_size,
          batch_size_training, num_steps_per_iter, num_epochs, optimizer,
-         num_layers, num_units, activation, transform, method, max_iter,
-         step_size, length_scale, tau, lambd, ftol, input_dir, output_dir):
+         num_layers, num_units, activation, transform, max_iter,
+         step_size, length_scale, tau, lambd, input_dir, output_dir):
 
     benchmark = make_benchmark(benchmark_name,
                                dimensions=dimensions,
@@ -101,17 +95,19 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
 
     options = dict(eta=eta, min_budget=min_budget, max_budget=max_budget,
                    gamma=gamma, num_random_init=num_random_init,
-                   batch_size=batch_size, random_rate=random_rate,
-                   num_starts=num_starts, num_samples=num_samples,
+                   batch_size=batch_size,
                    batch_size_training=batch_size_training,
                    num_steps_per_iter=num_steps_per_iter,
                    num_epochs=num_epochs, optimizer=optimizer,
                    num_layers=num_layers, num_units=num_units,
-                   activation=activation, transform=transform, method=method,
-                   max_iter=max_iter, step_size=step_size, tau=tau, lambd=lambd,
-                   length_scale=length_scale, ftol=ftol)
+                   activation=activation, transform=transform,
+                   max_iter=max_iter, step_size=step_size, tau=tau,
+                   lambd=lambd, length_scale=length_scale,
+                   init_method=init_method)
     with output_path.joinpath("options.yaml").open('w') as f:
         yaml.dump(options, f)
+
+    foo = ceil_divide(num_random_init, batch_size) * batch_size
 
     # def func(array):
     #     config = dict_from_array(config_space, x_next)
@@ -130,17 +126,19 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
         input_dim = config_space.get_dimensions(sparse=False)
         bounds = config_space.get_bounds()
 
-        model = BatchMaximizableSequential()
-        model.add(Dense(num_units, input_dim=input_dim, activation=activation))
-        for i in range(num_layers-1):
-            model.add(Dense(num_units, activation=activation))
-        model.add(Dense(1))
-
-        model.compile(loss=BinaryCrossentropy(from_logits=True),
-                      optimizer=optimizer)
-        model.summary(print_fn=click.echo)
+        model = create_model(input_dim, num_units, num_layers, activation,
+                             optimizer)
 
         record = Record()
+
+        sampler = LatinHypercube(d=input_dim, seed=run_id)
+
+        if init_method == "latin_hypercube":
+            X_init = (bounds.ub - bounds.lb) * sampler.random(foo) + bounds.lb
+        else:
+            X_init = random_state.uniform(low=bounds.lb,
+                                          high=bounds.ub,
+                                          size=(foo, input_dim))
 
         with trange(num_iterations) as iterations:
 
@@ -149,38 +147,21 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                 if record.size() < num_random_init:
                     # config_batch = config_space.sample_configuration(size=batch_size)
                     # X_batch = [config.to_array() for config in config_batch]
-                    X_batch = random_state.uniform(low=bounds.lb,
-                                                   high=bounds.ub,
-                                                   size=(batch_size, input_dim))
+                    a = batch * batch_size
+                    b = a + batch_size
+                    X_batch = X_init[a:b]
                 else:
                     # construct binary classification problem
                     X, z = record.load_classification_data(gamma)
 
                     if num_epochs is None:
                         dataset_size = record.size()
-                        steps_per_epoch = get_steps_per_epoch(batch_size_training,
-                                                              dataset_size)
-                        num_epochs = num_steps_per_iter // steps_per_epoch
+                        num_steps = steps_per_epoch(batch_size_training, dataset_size)
+                        num_epochs = num_steps_per_iter // num_steps
 
                     # update classifier
                     model.fit(X, z, epochs=num_epochs,
                               batch_size=batch_size_training, verbose=False)
-
-                    # suggest new candidate
-                    # opt = model.argmax(method=method, bounds=bounds,
-                    #                    num_starts=num_starts,
-                    #                    num_samples=num_samples,
-                    #                    options=dict(maxiter=max_iter, ftol=ftol),
-                    #                    filter_fn=is_unique(record),
-                    #                    print_fn=click.echo,
-                    #                    random_state=random_state)
-
-                    # if opt is None:
-                    #     x_next = config_random.to_array()
-                    #     config = config_random.get_dictionary()
-                    # else:
-                    #     x_next = opt.x
-                    #     config = dict_from_array(config_space, x_next)
 
                     X_batch = model.argmax_batch(batch_size=batch_size,
                                                  n_iter=max_iter,
@@ -189,7 +170,6 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                                                  bounds=bounds,
                                                  tau=tau, lambd=lambd,
                                                  # print_fn=click.echo,
-                                                 foo=record.load_feature_matrix(),
                                                  random_state=random_state)
 
                 batch_begin_t = eval_begin_t = datetime.now()
