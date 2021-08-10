@@ -107,11 +107,7 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
     with output_path.joinpath("options.yaml").open('w') as f:
         yaml.dump(options, f)
 
-    foo = ceil_divide(num_random_init, batch_size) * batch_size
-
-    # def func(array):
-    #     config = dict_from_array(config_space, x_next)
-    #     return benchmark.evaluate(config).value
+    n_init_batches = ceil_divide(num_random_init, batch_size) * batch_size
 
     for run_id in trange(run_start, num_runs, unit="run"):
 
@@ -134,11 +130,11 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
         sampler = LatinHypercube(d=input_dim, seed=run_id)
 
         if init_method == "latin_hypercube":
-            X_init = (bounds.ub - bounds.lb) * sampler.random(foo) + bounds.lb
+            X_init = (bounds.ub - bounds.lb) * sampler.random(n_init_batches) + bounds.lb
         else:
             X_init = random_state.uniform(low=bounds.lb,
                                           high=bounds.ub,
-                                          size=(foo, input_dim))
+                                          size=(n_init_batches, input_dim))
 
         with trange(num_iterations) as iterations:
 
