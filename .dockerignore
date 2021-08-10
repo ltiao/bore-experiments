@@ -1,8 +1,8 @@
+bin/*
 scratch/*
-scripts/*
-external/*
 datasets/*
 results/*
 figures/*
+src/botorch
 
 **/.git

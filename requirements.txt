@@ -1,28 +1,33 @@
+# General
 Click>=8.0.0
 tqdm>=4.48.2
 pyyaml==5.4.1
 
+# Numerical libraries
 matplotlib>=3.3.2
 seaborn>=0.11.0
 pandas>=1.1.1
 tables>=3.6.1
-cvxpy==1.1.12
+cvxpy==1.1.14
 
+# Machine learning and statistics
 scikit-learn>=0.23.2
 statsmodels>=0.12.0
 xgboost==1.3.3
 
 # TPE
-hyperopt==0.2.4
+# hyperopt==0.2.4
 
 # SMAC
-smac==0.13.1
+# smac==0.13.1
 
 # GP-BO
+
 # GPy==1.9.9
 # GPyOpt==1.2.6
-gpytorch==1.3.1
-botorch==0.3.1
+
+# gpytorch==1.3.1
+# botorch==0.3.1
 
 # git+git://github.com/google-research/nasbench@master#egg=nasbench
 # git+git://github.com/automl/nas_benchmarks@master#egg=nas_benchmarks
