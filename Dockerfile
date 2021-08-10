@@ -33,9 +33,7 @@ ARG SMAC_VERSION=0.13.1
 RUN python -m pip install --no-cache-dir hyperopt==${HYPEROPT_VERSION} smac==${SMAC_VERSION}
 
 # Install HpBandSter and HPO Bench
-ARG CYTHON_VERSION=0.29.23
-RUN python -m pip install --no-cache-dir Cython==${CYTHON_VERSION} && \
-    python -m pip install --no-cache-dir Pyro4 serpent ConfigSpace netifaces h5py
+RUN python -m pip install --no-cache-dir Pyro4 h5py
 COPY src/HpBandSter /tmp/HpBandSter
 COPY src/nas_benchmarks /tmp/nas_benchmarks
 RUN python -m pip install --no-cache-dir --no-deps -e /tmp/HpBandSter && \
