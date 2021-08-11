@@ -177,7 +177,7 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
 
                     state_dict = model.state_dict()
 
-                batch_begin_t = eval_begin_t = datetime.now()
+                batch_begin_t = datetime.now()
                 batch_begin_t_adj = batch_begin_t - (batch_end_t - batch_end_t_adj)
 
                 eval_end_times = []
@@ -187,6 +187,8 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                 # is a compelling reason to do it.
                 rows = []
                 for j, x_next in enumerate(X_batch):
+
+                    eval_begin_t = datetime.now()
 
                     # evaluate blackbox objective
                     y_next = func(x_next)
@@ -198,9 +200,6 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                     # adjusted eval end time is the duration added to the
                     # time at which batch eval was started
                     eval_end_t_adj = batch_begin_t_adj + duration
-                    # start time for next evaluation is the end time for the
-                    # previous evaluation
-                    eval_begin_t = eval_end_t
 
                     eval_end_times.append(eval_end_t_adj)
                     elapsed = eval_end_t_adj - run_begin_t
@@ -212,6 +211,7 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                     row = dict_from_tensor(x_next, cs=config_space)
                     row["batch"] = batch
                     row["loss"] = - y_next.item()
+                    row["cost"] = duration.total_seconds()
                     row["finished"] = elapsed.total_seconds()
                     rows.append(row)
 

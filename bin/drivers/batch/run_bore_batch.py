@@ -168,7 +168,7 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                                                  # print_fn=click.echo,
                                                  random_state=random_state)
 
-                batch_begin_t = eval_begin_t = datetime.now()
+                batch_begin_t = datetime.now()
                 batch_begin_t_adj = batch_begin_t - (batch_end_t - batch_end_t_adj)
 
                 eval_end_times = []
@@ -181,6 +181,8 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
 
                     config = dict_from_array(config_space, x_next)
 
+                    eval_begin_t = datetime.now()
+
                     # evaluate
                     y_next = benchmark.evaluate(config).value
 
@@ -191,9 +193,6 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                     # adjusted eval end time is the duration added to the
                     # time at which batch eval was started
                     eval_end_t_adj = batch_begin_t_adj + duration
-                    # start time for next evaluation is the end time for the
-                    # previous evaluation
-                    eval_begin_t = eval_end_t
 
                     eval_end_times.append(eval_end_t_adj)
                     elapsed = eval_end_t_adj - run_begin_t
@@ -204,6 +203,7 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                     row = dict(config)
                     row["batch"] = batch
                     row["loss"] = y_next
+                    row["cost"] = duration.total_seconds()
                     row["finished"] = elapsed.total_seconds()
                     rows.append(row)
 
