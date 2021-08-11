@@ -16,8 +16,8 @@ RUN python -m pip install --no-cache-dir torch==1.9.0+cu111 \
 
 # Install general dependencies
 # TODO: copy to temporary dir rather then some unknown current dir
-COPY requirements*.txt .
-COPY src/bore /tmp/bore
+COPY requirements*.txt ./
+COPY src/bore/requirements*.txt /tmp/bore/
 RUN python -m pip install --no-cache-dir -r requirements.txt && \
     python -m pip install --no-cache-dir -r /tmp/bore/requirements.txt && \
     python -m pip install --no-cache-dir -r /tmp/bore/requirements_dev.txt
@@ -46,6 +46,7 @@ COPY src/GPyOpt /tmp/GPyOpt
 RUN python -m pip install --no-cache-dir --no-deps -e /tmp/GPyOpt
 
 # Install BORE
+COPY src/bore /tmp/bore
 RUN python -m pip install --no-cache-dir --no-deps -e /tmp/bore
 
 RUN mkdir -p /usr/src/app

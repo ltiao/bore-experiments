@@ -2,6 +2,7 @@ import sys
 import click
 import yaml
 
+import numpy as np
 import pandas as pd
 import ConfigSpace as CS
 
@@ -98,10 +99,18 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                                                  acquisition_optimizer_type=acquisition_optimizer_name,
                                                  batch_size=batch_size,
                                                  evaluator_type="local_penalization")
-        BO.run_optimization(num_iterations)
+        BO.run_optimization(num_iterations,
+                            # evaluations_file="bar/evaluations.csv",
+                            # models_file="bar/models.csv",
+                            verbosity=True)
+
+        cost_decision_arr = np.hstack(BO.cost_decision)
+        cost_eval_arr = np.hstack(BO.cost_eval)
 
         data = pd.DataFrame(data=BO.X, columns=[d["name"] for d in space]) \
-                 .assign(loss=BO.Y, batch=lambda row: row.index // batch_size)
+                 .assign(loss=BO.Y, batch=lambda row: row.index // batch_size,
+                         cost_decision=lambda row: cost_decision_arr[row.batch],
+                         cost_eval=cost_eval_arr)
         data.to_csv(output_path.joinpath(f"{run_id:03d}.csv"))
 
     return 0
