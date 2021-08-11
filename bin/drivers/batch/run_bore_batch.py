@@ -127,9 +127,8 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
 
         record = Record()
 
-        sampler = LatinHypercube(d=input_dim, seed=run_id)
-
         if init_method == "latin_hypercube":
+            sampler = LatinHypercube(d=input_dim, seed=run_id)
             X_init = (bounds.ub - bounds.lb) * sampler.random(n_init_batches) + bounds.lb
         else:
             X_init = random_state.uniform(low=bounds.lb,
@@ -168,8 +167,10 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                                                  # print_fn=click.echo,
                                                  random_state=random_state)
 
+                # begin batch evaluation
                 batch_begin_t = datetime.now()
-                batch_begin_t_adj = batch_begin_t - (batch_end_t - batch_end_t_adj)
+                decision_duration = batch_begin_t - batch_end_t
+                batch_begin_t_adj = batch_end_t_adj + decision_duration
 
                 eval_end_times = []
 
@@ -181,18 +182,21 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
 
                     config = dict_from_array(config_space, x_next)
 
+                    # eval begin time
                     eval_begin_t = datetime.now()
 
-                    # evaluate
+                    # evaluate blackbox objective
                     y_next = benchmark.evaluate(config).value
 
                     # eval end time
                     eval_end_t = datetime.now()
+
                     # eval duration
-                    duration = eval_end_t - eval_begin_t
+                    eval_duration = eval_end_t - eval_begin_t
+
                     # adjusted eval end time is the duration added to the
                     # time at which batch eval was started
-                    eval_end_t_adj = batch_begin_t_adj + duration
+                    eval_end_t_adj = batch_begin_t_adj + eval_duration
 
                     eval_end_times.append(eval_end_t_adj)
                     elapsed = eval_end_t_adj - run_begin_t
@@ -201,19 +205,20 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                     record.append(x=x_next, y=y_next)
 
                     row = dict(config)
-                    row["batch"] = batch
                     row["loss"] = y_next
-                    row["cost"] = duration.total_seconds()
+                    row["cost_eval"] = eval_duration.total_seconds()
                     row["finished"] = elapsed.total_seconds()
                     rows.append(row)
 
                 batch_end_t = datetime.now()
                 batch_end_t_adj = max(eval_end_times)
 
-                frame = pd.DataFrame(data=rows)
+                frame = pd.DataFrame(data=rows) \
+                          .assign(batch=batch,
+                                  cost_decision=decision_duration.total_seconds())
                 frames.append(frame)
 
-        data = pd.concat(frames, axis="index", ignore_index=True, sort=True)
+        data = pd.concat(frames, axis="index", ignore_index=True)
         data.to_csv(output_path.joinpath(f"{run_id:03d}.csv"))
 
     return 0

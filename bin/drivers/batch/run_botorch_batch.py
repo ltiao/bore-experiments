@@ -177,8 +177,10 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
 
                     state_dict = model.state_dict()
 
+                # begin batch evaluation
                 batch_begin_t = datetime.now()
-                batch_begin_t_adj = batch_begin_t - (batch_end_t - batch_end_t_adj)
+                decision_duration = batch_begin_t - batch_end_t
+                batch_begin_t_adj = batch_end_t_adj + decision_duration
 
                 eval_end_times = []
 
@@ -188,6 +190,7 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                 rows = []
                 for j, x_next in enumerate(X_batch):
 
+                    # eval begin time
                     eval_begin_t = datetime.now()
 
                     # evaluate blackbox objective
@@ -195,11 +198,13 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
 
                     # eval end time
                     eval_end_t = datetime.now()
+
                     # eval duration
-                    duration = eval_end_t - eval_begin_t
+                    eval_duration = eval_end_t - eval_begin_t
+
                     # adjusted eval end time is the duration added to the
                     # time at which batch eval was started
-                    eval_end_t_adj = batch_begin_t_adj + duration
+                    eval_end_t_adj = batch_begin_t_adj + eval_duration
 
                     eval_end_times.append(eval_end_t_adj)
                     elapsed = eval_end_t_adj - run_begin_t
@@ -209,19 +214,20 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                     targets.append(y_next)
 
                     row = dict_from_tensor(x_next, cs=config_space)
-                    row["batch"] = batch
                     row["loss"] = - y_next.item()
-                    row["cost"] = duration.total_seconds()
+                    row["cost_eval"] = eval_duration.total_seconds()
                     row["finished"] = elapsed.total_seconds()
                     rows.append(row)
 
                 batch_end_t = datetime.now()
                 batch_end_t_adj = max(eval_end_times)
 
-                frame = pd.DataFrame(data=rows)
+                frame = pd.DataFrame(data=rows) \
+                          .assign(batch=batch,
+                                  cost_decision=decision_duration.total_seconds())
                 frames.append(frame)
 
-        data = pd.concat(frames, axis="index", ignore_index=True, sort=True)
+        data = pd.concat(frames, axis="index", ignore_index=True)
         data.to_csv(output_path.joinpath(f"{run_id:03d}.csv"))
 
     return 0
