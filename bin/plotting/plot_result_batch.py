@@ -80,7 +80,6 @@ def main(name, input_dir, output_dir, benchmarks, num_runs, methods, ci,
     for benchmark in benchmarks:
 
         benchmark_name, benchmark_options = parse_benchmark_name(benchmark, input_dir="datasets/")
-        print("BENCHMARK NAME!!!", benchmark_name)
         loss_min = get_loss_min(benchmark_name, benchmark_options)
 
         for method in methods:

@@ -1,13 +1,20 @@
 methods:
   random: Random
   tpe: TPE
-  bohb: TPE (\texttt{HpBandSter})
-  bore: BORE
+  # bohb: TPE (\texttt{HpBandSter})
+  bohb: BOHB
+  # bore: BORE
+  # bore: BORE-HB
+  bore: QS-BORE
+  bore-logit: QS-BORE (logit-space, 1000-iters)
+  bore-logit-relu: QS-BORE (logit-space, \texttt{relu})
+  bore-logit-steps-200: QS-BORE (logit-space, 200-steps)
+  bore-logit-max-iter-2000: QS-BORE (logit-space, 2000-iters)
+  bore-logit-max-iter-500: QS-BORE (logit-space, 500-iters)
+  bore-logit-step-size-1e-2: QS-BORE (logit-space, step size $1 \times 10^{-2}$)
   bore-elu-25: BORE
   gp-botorch: BO-GP $q$-EI (MC)
   smac: SMAC
-  bore: QS-BORE
-  bore-logit: QS-BORE (logit-space)
   gpyopt: BO-GP LP-EI 
   botorch: BO-GP $q$-EI (MC)
   bore-batch: QS-BORE
@@ -16,6 +23,7 @@ methods:
   botorch-batch: BO-GP $q$-EI (MC)
   botorch-kg: BO-GP $q$-KG (MC; one-shot)
   botorch-std-batch: GP (standardized; MC $q$-EI)
+  hyperband: Hyperband
 benchmarks:
   branin: Branin-Hoo
   goldstein_price: Goldstein-Price
@@ -42,6 +50,7 @@ benchmarks:
   rosenbrock_005d: \textsc{rosenbrock} $D=5$
   rosenbrock_010d: \textsc{rosenbrock} $D=10$
   michalewicz: \textsc{michalewicz}
+  styblinski_tang: \textsc{styblinski-tang}
   rosenbrock: \textsc{rosenbrock}
 datasets:
   adult: \textsc{adult}

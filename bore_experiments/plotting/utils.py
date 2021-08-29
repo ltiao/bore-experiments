@@ -87,8 +87,11 @@ def load_frame(path, run, loss_min=None, loss_key="loss", sort_key="finished",
     loss = frame[loss_key]
     best = loss.cummin()
 
-    frame = frame.assign(run=run, evaluation=frame.index + 1, best=best,
-                         elapsed=elapsed)
+    frame = frame.assign(run=run, best=best, elapsed=elapsed,
+                         evaluation=frame.index+1)
+
+    # if "epoch" not in frame:
+    # frame = frame.assign(epoch=50)
 
     if "epoch" in frame:
         target = frame.groupby(by="task").epoch.max()
