@@ -26,6 +26,8 @@ from bore_experiments.plotting.utils import (GOLDEN_RATIO, WIDTH, pt_to_in,
 @click.option('--num-runs', '-n', default=20)
 @click.option('--methods', '-m', multiple=True)
 @click.option('--ci')
+@click.option('--show-runs/--no-show-runs', default=False)
+@click.option('--show-title/--no-show-title', default=True)
 @click.option('--duration-key', default=None)
 @click.option('--legend/--no-legend', default=True)
 @click.option('--ymin', type=float)
@@ -42,7 +44,8 @@ from bore_experiments.plotting.utils import (GOLDEN_RATIO, WIDTH, pt_to_in,
 @click.option('--dpi', type=float)
 @click.option('--extension', '-e', multiple=True, default=["png"])
 @click.option("--config-file", type=click.File('r'))
-def main(benchmark, input_dir, output_dir, num_runs, methods, ci,
+def main(benchmark, input_dir, output_dir, num_runs, methods, ci, show_runs,
+         show_title,
          duration_key, legend, ymin, ymax, ylabel, use_tex, transparent,
          context, style, palette, width, height, aspect, dpi, extension,
          config_file):
@@ -51,8 +54,6 @@ def main(benchmark, input_dir, output_dir, num_runs, methods, ci,
         height = width / aspect
     # figsize = size(width, aspect)
     figsize = (width, height)
-
-    show_title = True
 
     suffix = f"{width*dpi:.0f}x{height*dpi:.0f}"
 
@@ -83,8 +84,8 @@ def main(benchmark, input_dir, output_dir, num_runs, methods, ci,
 
     for method in methods:
 
-        # method_name = f"{method}"  # TODO(LT): revisit naming scheme later
-        method_name = "-".join(method.split("-")[:-1])
+        method_name = f"{method}"  # TODO(LT): revisit naming scheme later
+        # method_name = "-".join(method.split("-")[:-1])
 
         with input_path.joinpath(benchmark, method, "options.yaml").open('r') as f:
             options = yaml.safe_load(f)
@@ -101,8 +102,8 @@ def main(benchmark, input_dir, output_dir, num_runs, methods, ci,
                 continue
 
             frame = load_frame(path, run, loss_min=loss_min,
-                               duration_key=duration_key) \
-                .groupby(by="batch").min().reset_index()
+                               duration_key=duration_key)
+                # .groupby(by="batch").min().reset_index()
 
             frames.append(frame.assign(benchmark=benchmark_name, method=method_name, **options, **benchmark_options))
             series[run] = extract_series(frame, index="elapsed", column="regret")
@@ -110,8 +111,8 @@ def main(benchmark, input_dir, output_dir, num_runs, methods, ci,
         frame_merged = merge_stack_series(series, y_key="regret")
         frames_merged.append(frame_merged.assign(benchmark=benchmark_name, method=method_name, **options, **benchmark_options))
 
-    data = pd.concat(frames, axis="index", ignore_index=True, sort=False)
-    # .assign(r=lambda row: row.resource / 50.)
+    data = pd.concat(frames, axis="index", ignore_index=True, sort=False) \
+             .assign(r=lambda row: row.resource / 50.)
     data = sanitize(data,
                     methods_mapping=methods_mapping,
                     benchmarks_mapping=benchmarks_mapping,
@@ -120,9 +121,9 @@ def main(benchmark, input_dir, output_dir, num_runs, methods, ci,
     order = list(map(methods_mapping.get, ["-".join(method.split("-")[:-1]) for method in methods]))
     frame = data.groupby(["method", "run"]).last().regret.reset_index()
 
-    print(order)
-    print(data)
-    print(frame)
+    # print(order)
+    print(data.method)
+    # print(frame)
 
     # fig, ax = plt.subplots()
 
@@ -160,30 +161,33 @@ def main(benchmark, input_dir, output_dir, num_runs, methods, ci,
 
     fig, ax = plt.subplots()
 
-    # if show_title:
-    #     ax.set_title(r"{benchmark} ($D={dimensions}$)".format(benchmark=benchmarks_mapping[benchmark_name], **benchmark_options))
+    if show_title:
+        ax.set_title("{benchmark}".format(benchmark=benchmarks_mapping[benchmark],
+                                          **benchmark_options))
+        # ax.set_title(r"{benchmark} ($D={dimensions}$)".format(benchmark=benchmarks_mapping[benchmark_name], **benchmark_options))
 
     # sns.despine(fig=fig, ax=ax, top=True)
     # divider = make_axes_locatable(ax)
 
-    sns.lineplot(x="batch", y="regret",
-                 hue="method", hue_order=order,
+    sns.lineplot(x="r", y="regret",
+                 hue="method",  # hue_order=order,
                  ci=get_ci(ci),
                  err_style="band",  # err_kws=dict(edgecolor='none'),
                  # err_style="bars",  # err_kws=dict(edgecolor='none'),
                  alpha=0.8, zorder=2,
                  legend=legend, data=data, ax=ax)
-    sns.lineplot(x="batch", y="regret",
-                 hue="method", hue_order=order,
-                 units="run", estimator=None,
-                 linewidth=0.1, alpha=0.2, zorder=1,
-                 legend=False, data=data, ax=ax)
 
+    if show_runs:
+        sns.lineplot(x="r", y="regret",
+                     hue="method",  # hue_order=order,
+                     units="run", estimator=None,
+                     linewidth=0.1, alpha=0.2, zorder=1,
+                     legend=False, data=data, ax=ax)
+
+    # ax.set_xlabel("batch")
     # ax.set_xlabel("wall-clock time elapsed [s]")
-    # ax.set_xlabel(r"resource [\emph{epoch}]")
-    # ax.set_xscale("log")
-
-    ax.set_xlabel("batch")
+    ax.set_xlabel(r"resource [\emph{epoch}]")
+    ax.set_xscale("log")
 
     ax.set_ylabel(ylabel)
     ax.set_yscale("log")
@@ -241,14 +245,15 @@ def main(benchmark, input_dir, output_dir, num_runs, methods, ci,
                  err_style="band",  # err_kws=dict(edgecolor='none'),
                  # palette="viridis_r",
                  alpha=0.8, legend=legend, data=data_merged, ax=ax)
-    sns.lineplot(x="elapsed", y="regret", hue="method",
-                 # hue="epoch",  # hue_order=hue_order,
-                 # style="method",  # style_order=style_order,
-                 units="run", estimator=None,
-                 # ci=get_ci(ci), err_kws=dict(edgecolor='none'),
-                 # palette="viridis_r",
-                 linewidth=0.1, alpha=0.2,
-                 legend=False, data=data_merged, ax=ax)
+    if show_runs:
+        sns.lineplot(x="elapsed", y="regret", hue="method",
+                     # hue="epoch",  # hue_order=hue_order,
+                     # style="method",  # style_order=style_order,
+                     units="run", estimator=None,
+                     # ci=get_ci(ci), err_kws=dict(edgecolor='none'),
+                     # palette="viridis_r",
+                     linewidth=0.1, alpha=0.2,
+                     legend=False, data=data_merged, ax=ax)
 
     # ax.set_xlabel("wall-clock time elapsed [s]")
     ax.set_xlabel(r"time elapsed  [$s$]")
