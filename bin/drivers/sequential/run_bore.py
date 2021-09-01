@@ -36,7 +36,7 @@ logging.basicConfig(level=logging.DEBUG)
 @click.option("--num-samples", default=1024)
 @click.option("--batch-size", default=64)
 @click.option("--num-steps-per-iter", default=100)
-@click.option("--num-epochs", type=int)
+@click.option("--num-epochs-per-iter", type=int)
 @click.option("--optimizer", default="adam")
 @click.option("--num-layers", default=2)
 @click.option("--num-units", default=32)
@@ -56,7 +56,7 @@ logging.basicConfig(level=logging.DEBUG)
 def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
          run_start, num_iterations, eta, min_budget, max_budget, gamma,
          num_random_init, random_rate, retrain, num_starts, num_samples,
-         batch_size, num_steps_per_iter, num_epochs, optimizer,
+         batch_size, num_steps_per_iter, num_epochs_per_iter, optimizer,
          num_layers, num_units, activation, l2_factor, transform, method,
          max_iter, ftol, distortion, input_dir, output_dir):
 
@@ -76,7 +76,7 @@ def main(benchmark_name, dataset_name, dimensions, method_name, num_runs,
                    random_rate=random_rate, retrain=retrain,
                    num_starts=num_starts, num_samples=num_samples,
                    batch_size=batch_size, num_steps_per_iter=num_steps_per_iter,
-                   num_epochs=num_epochs, optimizer=optimizer,
+                   num_epochs_per_iter=num_epochs_per_iter, optimizer=optimizer,
                    num_layers=num_layers, num_units=num_units,
                    activation=activation, l2_factor=l2_factor,
                    transform=transform,

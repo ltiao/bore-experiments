@@ -3,10 +3,11 @@ methods:
   tpe: TPE
   # bohb: TPE (\texttt{HpBandSter})
   bohb: BOHB
-  # bore: BORE
+  bore: BORE
+  bore-logit: BORE (logit-space)
   # bore: BORE-HB
-  bore: QS-BORE
-  bore-logit: QS-BORE (logit-space, 1000-iters)
+  # bore: QS-BORE
+  # bore-logit: QS-BORE (logit-space, 1000-iters)
   bore-logit-relu: QS-BORE (logit-space, \texttt{relu})
   bore-logit-steps-200: QS-BORE (logit-space, 200-steps)
   bore-logit-max-iter-2000: QS-BORE (logit-space, 2000-iters)
