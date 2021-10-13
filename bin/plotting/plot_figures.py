@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from pathlib import Path
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 from bore_experiments.plotting.utils import (GOLDEN_RATIO, WIDTH, pt_to_in,
                                              load_frame, extract_series,
                                              merge_stack_series, get_loss_min,
@@ -112,7 +111,6 @@ def main(benchmark, input_dir, output_dir, num_runs, methods, ci, show_runs,
         frames_merged.append(frame_merged.assign(benchmark=benchmark_name, method=method_name, **options, **benchmark_options))
 
     data = pd.concat(frames, axis="index", ignore_index=True, sort=False)
-             # .assign(r=lambda row: row.resource / 50.)
     data = sanitize(data,
                     methods_mapping=methods_mapping,
                     benchmarks_mapping=benchmarks_mapping,
@@ -121,53 +119,11 @@ def main(benchmark, input_dir, output_dir, num_runs, methods, ci, show_runs,
     order = list(map(methods_mapping.get, ["-".join(method.split("-")[:-1]) for method in methods]))
     frame = data.groupby(["method", "run"]).last().regret.reset_index()
 
-    # print(order)
-    print(data.method)
-    # print(frame)
-
-    # fig, ax = plt.subplots()
-
-    # sns.lineplot(x="batch", y="regret", hue="method",
-    #              # hue_order=order,
-    #              # hue="epoch",  # hue_order=hue_order,
-    #              # style="method",  # style_order=style_order,
-    #              # units="run", estimator=None,
-    #              ci=get_ci(ci),
-    #              # palette="viridis_r",
-    #              # linewidth=0.4, alpha=0.4,
-    #              legend=legend, data=data, ax=ax)
-    # sns.lineplot(x="batch", y="regret", hue="method",
-    #              # hue_order=order,
-    #              # hue="epoch",  # hue_order=hue_order,
-    #              # style="method",  # style_order=style_order,
-    #              units="run", estimator=None,
-    #              # ci=get_ci(ci), err_kws=dict(edgecolor='none'),
-    #              # palette="viridis_r",
-    #              linewidth=0.4, alpha=0.4,
-    #              legend=False, data=data, ax=ax)
-
-    # ax.set_ylabel(ylabel)
-    # ax.set_yscale("log")
-
-    # plt.tight_layout()
-
-    # for ext in extension:
-    #     fig.savefig(output_path.joinpath(f"test_{context}_{suffix}.{ext}"),
-    #                 dpi=dpi, transparent=transparent)
-
-    # plt.clf()
-
-    # return 0
-
     fig, ax = plt.subplots()
 
     if show_title:
         ax.set_title("{benchmark}".format(benchmark=benchmarks_mapping[benchmark],
                                           **benchmark_options))
-        # ax.set_title(r"{benchmark} ($D={dimensions}$)".format(benchmark=benchmarks_mapping[benchmark_name], **benchmark_options))
-
-    # sns.despine(fig=fig, ax=ax, top=True)
-    # divider = make_axes_locatable(ax)
 
     sns.lineplot(x="batch", y="regret",
                  hue="method",  # hue_order=order,
@@ -185,113 +141,14 @@ def main(benchmark, input_dir, output_dir, num_runs, methods, ci, show_runs,
                      legend=False, data=data, ax=ax)
 
     ax.set_xlabel("batch")
-    # ax.set_xlabel("wall-clock time elapsed [s]")
-    # ax.set_xlabel(r"resource [\emph{epoch}]"))
-    # ax.set_xscale("log")
 
     ax.set_ylabel(ylabel)
     ax.set_yscale("log")
-
-    # ax.axvline(1.0, linestyle="dashed", linewidth=0.5, color="tab:gray",
-    #            alpha=0.6, zorder=-1)
-
-    # ax.legend(loc="lower left")
-
-    # ax_y = divider.append_axes("right", size=0.5, pad=0.1, sharey=ax)
-
-    # sns.boxplot(x="method", y="regret",  # hue="method",
-    #             order=order,
-    #               # hue="epoch",  # hue_order=hue_order,
-    #               # style="method",  # style_order=style_order,
-    #               # ci=get_ci(ci),
-    #               # err_style="band",  # err_kws=dict(edgecolor='none'),
-    #               # palette="viridis_r",
-    #               # alpha=0.6,
-    #               width=0.5,
-    #               linewidth=0.5,
-    #               fliersize=0.4,
-    #               # legend=legend,
-    #               # jitter=False,
-    #               data=frame, ax=ax_y)
-
-    # # ax_y.set_yticks([])
-    # ax_y.set_ylabel(None)
-
-    # ax_y.set_xticklabels([])
-    # # ax_y.set_xticklabels(order, rotation=90, fontsize="xx-small")
-    # ax_y.set_xlabel(None)
 
     plt.tight_layout()
 
     for ext in extension:
         fig.savefig(output_path.joinpath(f"resource_{context}_{suffix}.{ext}"),
-                    dpi=dpi, transparent=transparent)
-
-    plt.clf()
-
-    data_merged = pd.concat(frames_merged, axis="index", ignore_index=True, sort=True)
-    data_merged = sanitize(data_merged,
-                           methods_mapping=methods_mapping,
-                           benchmarks_mapping=benchmarks_mapping,
-                           datasets_mapping=datasets_mapping)
-
-    fig, ax = plt.subplots()
-    sns.despine(fig=fig, ax=ax, top=True)
-
-    sns.lineplot(x="elapsed", y="regret", hue="method",
-                 # hue="epoch",  # hue_order=hue_order,
-                 # style="method",  # style_order=style_order,
-                 ci=get_ci(ci),
-                 err_style="band",  # err_kws=dict(edgecolor='none'),
-                 # palette="viridis_r",
-                 alpha=0.8, legend=legend, data=data_merged, ax=ax)
-    if show_runs:
-        sns.lineplot(x="elapsed", y="regret", hue="method",
-                     # hue="epoch",  # hue_order=hue_order,
-                     # style="method",  # style_order=style_order,
-                     units="run", estimator=None,
-                     # ci=get_ci(ci), err_kws=dict(edgecolor='none'),
-                     # palette="viridis_r",
-                     linewidth=0.1, alpha=0.2,
-                     legend=False, data=data_merged, ax=ax)
-
-    # ax.set_xlabel("wall-clock time elapsed [s]")
-    ax.set_xlabel(r"time elapsed  [$s$]")
-    ax.set_xscale("log")
-
-    ax.set_ylabel(ylabel)
-    ax.set_yscale("log")
-
-    plt.tight_layout()
-
-    for ext in extension:
-        fig.savefig(output_path.joinpath(f"time_elapsed_{context}_{suffix}.{ext}"),
-                    dpi=dpi, transparent=transparent)
-
-    plt.clf()
-
-    return 0
-
-    fig, ax = plt.subplots()
-    sns.despine(fig=fig, ax=ax, top=True)
-
-    sns.lineplot(x="elapsed", y="regret",
-                 hue="method",  # hue_order=hue_order,
-                 style="method",  # style_order=style_order,
-                 # units="run", estimator=None,
-                 ci=get_ci(ci), err_kws=dict(edgecolor='none'),
-                 legend=legend, data=data_merged, ax=ax)
-
-    ax.set_xlabel("wall-clock time elapsed [s]")
-    ax.set_ylabel(ylabel)
-
-    ax.set_yscale("log")
-    ax.set_ylim(ymin, ymax)
-
-    plt.tight_layout()
-
-    for ext in extension:
-        fig.savefig(output_path.joinpath(f"regret_elapsed_{context}_{suffix}.{ext}"),
                     dpi=dpi, transparent=transparent)
 
     plt.clf()
